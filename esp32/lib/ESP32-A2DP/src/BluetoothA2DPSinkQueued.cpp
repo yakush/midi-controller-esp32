@@ -99,7 +99,7 @@ size_t BluetoothA2DPSinkQueued::write_audio(const uint8_t *data, size_t size)
 
     if (ringbuffer_mode == RINGBUFFER_MODE_DROPPING) {
         ESP_LOGW(BT_APP_TAG, "ringbuffer is full, drop this packet!");
-        vRingbufferGetInfo(s_ringbuf_i2s, NULL, NULL, NULL, NULL, &item_size);
+        vRingbufferGetInfo(s_ringbuf_i2s, NULL, NULL, NULL, &item_size);
         if (item_size <= i2s_ringbuffer_prefetch_size()) {
             ESP_LOGI(BT_APP_TAG, "ringbuffer data decreased! mode changed: RINGBUFFER_MODE_PROCESSING");
             ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
@@ -115,7 +115,7 @@ size_t BluetoothA2DPSinkQueued::write_audio(const uint8_t *data, size_t size)
     }
 
     if (ringbuffer_mode == RINGBUFFER_MODE_PREFETCHING) {
-        vRingbufferGetInfo(s_ringbuf_i2s, NULL, NULL, NULL, NULL, &item_size);
+        vRingbufferGetInfo(s_ringbuf_i2s, NULL, NULL, NULL, &item_size);
         if (item_size >= i2s_ringbuffer_prefetch_size()) {
             ESP_LOGI(BT_APP_TAG, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
             ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
