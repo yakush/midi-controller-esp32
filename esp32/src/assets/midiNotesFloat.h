@@ -1,6 +1,8 @@
 #pragma once
+#include <Arduino.h>
+#include "config.h"
 
-const float MIDI_NOTES_FLOAT[]{
+const float MIDI_NOTES_FLOATS[]{
     8.18,
     8.66,
     9.18,

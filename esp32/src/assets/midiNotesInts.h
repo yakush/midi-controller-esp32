@@ -1,7 +1,8 @@
 #pragma once
 #include <Arduino.h>
+#include "config.h"
 
-const int16_t MIDI_NOTES_INT[]{
+const FREQ_T MIDI_NOTES[]{
     8,     // 8.18
     9,     // 8.66
     9,     // 9.18

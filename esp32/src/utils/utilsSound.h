@@ -1,45 +1,71 @@
 #pragma once
 #include <Arduino.h>
+#include "config.h"
+#include "assets/midiNotesInts.h"
 #include "types/midi.h"
 
-float getNoteFrequency(byte pitch, float pitchBend)
+void logGraphChannelValue(String pre, FRAME_CHANNEL_T val, byte maxStars)
+{
+    auto stars = (FRAME_CHANNEL_DOUBLE_T)val * maxStars / FRAME_CHANNEL_MAX;
+
+    Serial.print(pre);
+
+    for (byte i = 0; i < stars; i++)
+    {
+        Serial.print("*");
+    }
+    Serial.println();
+}
+
+FREQ_T getNoteFrequency(byte pitch, float pitchBend)
 {
     if (pitchBend > 1 && pitch < 125)
     {
-        auto a = MIDI_NOTES_FLOAT[pitch + 1];
-        auto b = MIDI_NOTES_FLOAT[pitch + 2];
+        auto a = MIDI_NOTES[pitch + 1];
+        auto b = MIDI_NOTES[pitch + 2];
         return a + ((b - a) * (pitchBend - 1.0));
     }
     else if (pitchBend >= __FLT_EPSILON__ && pitch < 126)
     {
-        auto a = MIDI_NOTES_FLOAT[pitch + 0];
-        auto b = MIDI_NOTES_FLOAT[pitch + 1];
+        auto a = MIDI_NOTES[pitch + 0];
+        auto b = MIDI_NOTES[pitch + 1];
         return a + ((b - a) * (pitchBend));
     }
     else if (pitchBend <= -1 && pitch > 2)
     {
-        auto a = MIDI_NOTES_FLOAT[pitch - 1];
-        auto b = MIDI_NOTES_FLOAT[pitch - 2];
+        auto a = MIDI_NOTES[pitch - 1];
+        auto b = MIDI_NOTES[pitch - 2];
         return a + ((b - a) * (-pitchBend - 1.0));
     }
     else if (pitchBend <= -__FLT_EPSILON__ && pitch > 1)
     {
-        auto a = MIDI_NOTES_FLOAT[pitch - 0];
-        auto b = MIDI_NOTES_FLOAT[pitch - 1];
+        auto a = MIDI_NOTES[pitch - 0];
+        auto b = MIDI_NOTES[pitch - 1];
         return a + ((b - a) * (-pitchBend));
     }
     else
     {
-        return MIDI_NOTES_FLOAT[pitch];
+        return MIDI_NOTES[pitch];
     }
 }
 
 //-------------------------------------------------------
 void updateNoteEnvelope(Note &note, unsigned long now)
 {
-    float output = 0;
-    unsigned long dt = now - note.stateStartTime;
-    float attackOvershoot = note.envelope.attackOvershoot;
+    // helper var
+    static FRAME_CHANNEL_T max = FRAME_CHANNEL_MAX;
+
+    FRAME_CHANNEL_T output = 0;
+
+    auto dt = now - note.stateStartTime;
+
+    auto attack = note.envelope.attack;
+    auto decay = note.envelope.decay;
+    auto sustain = note.envelope.sustain;
+    auto release = note.envelope.release;
+    auto decayLevel = note.envelope.decayLevel;
+
+    auto releaseMaxAmplitude = note.startReleaseAmplitude;
 
     // pressed will initially switch to attack
     // stateStartTime time will stay the pressed time!
@@ -49,16 +75,13 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     }
 
     // allowed states:
+
     if (note.state == EnvelopeState::ATTACK)
     {
-        output = attackOvershoot * (dt / note.envelope.attack);
+        // max*(dt/attack)
+        output = (FRAME_CHANNEL_DOUBLE_T)max * dt / attack;
 
-        // no over overshoot just in case
-        if (output > attackOvershoot)
-        {
-            output = attackOvershoot;
-        }
-        if (dt > note.envelope.attack)
+        if (dt > attack)
         {
             note.state = EnvelopeState::DECAY;
             note.stateStartTime = now;
@@ -66,8 +89,10 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     }
     else if (note.state == EnvelopeState::DECAY)
     {
-        output = attackOvershoot + (1.0 - attackOvershoot) * (dt / note.envelope.decay);
-        if (dt > note.envelope.decay)
+        // max - ((max - decayLevel) * (dt/attack))
+        output = (FRAME_CHANNEL_DOUBLE_T)max - (((FRAME_CHANNEL_DOUBLE_T)max - decayLevel) * dt / decay);
+
+        if (dt > decay)
         {
             note.state = EnvelopeState::SUSTAIN;
             note.stateStartTime = now;
@@ -75,11 +100,12 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     }
     else if (note.state == EnvelopeState::SUSTAIN)
     {
-        output = 1.0;
-        // negative sustain means no note decay (stays forever)
-        if (dt > note.envelope.sustain)
+        // = decayLevel
+        output = decayLevel;
+        // sustain=0 means no note decay (stays forever)
+        if (dt > sustain)
         {
-            if (note.envelope.sustain > 0)
+            if (sustain > 0)
             {
                 note.state = EnvelopeState::RELEASE;
                 note.startReleaseAmplitude = output;
@@ -90,29 +116,29 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     else if (note.state == EnvelopeState::RELEASE)
     {
         // decay from startReleaseAmplitude (in case released before the sustain state)
-        // fake start time
 
-        output = note.startReleaseAmplitude - (dt / note.envelope.release);
+        // releaseMaxAmplitude - releaseMaxAmplitude*(dt/release)
+        output = releaseMaxAmplitude - ((FRAME_CHANNEL_DOUBLE_T)releaseMaxAmplitude * dt / release);
 
-        if (dt > note.envelope.release)
+        if (dt > release)
         {
             note.state = EnvelopeState::DEAD;
             note.stateStartTime = now;
-            output = 0.0;
+            output = 0;
         }
     }
     else if (note.state == EnvelopeState::DEAD)
     {
-        output = 0.0;
-    }
-
-    // no negative
-    if (output < 0)
-    {
         output = 0;
     }
 
-    // velocity:
+    // // no negative
+    // if (output < 0)
+    // {
+    //     output = 0;
+    // }
+
+    // set:
     note.currentAmplitude = output;
 }
 

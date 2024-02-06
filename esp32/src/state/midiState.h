@@ -108,7 +108,7 @@ public:
         STATE_UNLOCK(_mutex);
     }
 
-    void removeAllNotes(byte pitch)
+    void removeAllNotes()
     {
         STATE_LOCK(_mutex);
         size_t len = _notesPlaying.size();

@@ -12,6 +12,9 @@
 #include "state/midiState.h"
 #include "state/appState.h"
 
+#include "utils/utilsSound.h"
+#include "waveGenerators.h"
+
 void setup()
 {
   Serial.begin(115200);
@@ -37,11 +40,11 @@ void setup()
   SynthesizerService.begin();
 
   if (!SpeakerService.begin(
-          0,    // i2s port (0 or 1)
-          26,   // BCK pin
-          25,   // LRCK pin
-          22,   // DATA pin
-          44100 // play freq
+          0,          // i2s port (0 or 1)
+          26,         // BCK pin
+          25,         // LRCK pin
+          22,         // DATA pin
+          SAMPLE_RATE // play freq
           ))
   {
     Serial.println("MAX i2s driver initialization Failed");
@@ -49,20 +52,46 @@ void setup()
   };
 }
 
+class EnvLogger : public NotesIterator
+{
+public:
+  EnvLogger()
+  {
+  }
+
+  bool run(Note &note, size_t i, size_t len) override
+  {
+    Serial.printf("%d [%d] ", note.pitch, note.state);
+    logGraphChannelValue(": ", note.currentAmplitude, 20);
+    return true;
+  }
+};
+
 void loop()
 {
   ServerService.loop();
   MidiService.loop();
   SynthesizerService.loop();
 
-  { // log i2s_writeTime
-    static unsigned long last = millis();
-    if (millis() > last + 1000)
-    {
-      Logger.printf("time %u micros\n", AppState.i2s_writeTime());
-      last = millis();
-    }
-  }
+  // { // log envelope graph
+  //   static unsigned long last = millis();
+  //   if (millis() > last + 50)
+  //   {
+  //     EnvLogger logger;
+  //     MidiState.notesForeach(&logger);
+  //     last = millis();
+  //   }
+  // }
+
+  // { // log i2s_writeTime
+  //   static unsigned long last = millis();
+  //   if (millis() > last + 1000)
+  //   {
+  //     Logger.printf("time %u micros\n", AppState.i2s_writeTime());
+  //     last = millis();
+  //   }
+  // }
+
   // static unsigned long last = millis();
   // static unsigned long counter = 1;
   // if (millis() > last + 10000)

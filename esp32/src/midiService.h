@@ -46,7 +46,8 @@ void handleNoteOn(byte channel, byte pitch, byte velocity)
 {
     // Logger.printf("note on %d %d %d\n", channel, pitch, velocity);
 
-    Envelope envelope(100, 300, -1, 200, 1.5);
+    //Envelope envelope(1000, 1000, -1, 1000, 0.5);
+    Envelope envelope(100, 200, -1, 300, 0.8);
     Note note(pitch, velocity, envelope);
     note.freq = getNoteFrequency(note.pitch, MidiState.pitchBend());
     MidiState.addNote(note);

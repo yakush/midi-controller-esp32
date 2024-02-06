@@ -20,8 +20,8 @@
 class NotesRunner : public NotesIterator
 {
 public:
-    float output = 0;
-    float time = 0;
+    FRAME_CHANNEL_DOUBLE_T output = 0;
+    uint32_t time = 0;
 
     float lastEnvelopeUpdateMillis = 0;
     bool requestEnvelopeUpdate = false;
@@ -53,7 +53,7 @@ public:
 
     bool run(Note &note, size_t i, size_t len) override
     {
-        float noteOutput = 0;
+        FRAME_CHANNEL_DOUBLE_T noteOutput = 0;
         // abort dead notes
         if (note.state == EnvelopeState::DEAD)
         {
@@ -69,10 +69,13 @@ public:
         }
 
         // generate wave and add to output
-        float freq = note.freq;
-        float angle = (freq)*time;
-        angle = PI_2 * (angle - floorf(angle));
-        float phase = note.phase;
+        // angle is (0..WAVE_PI_2) as in range of (0..pi)
+        FREQ_T freq = note.freq;
+        FREQ_T angle = uint32_t(freq) * time;
+        angle = (angle << SHIFT_WAVE_SAMPLE_RATE) >> SHIFT_FRAME_CHANNEL;
+        angle = angle % WAVE_PI_2;
+
+        FREQ_T phase = note.phase;
 
         // wave (saw tooth for now):
         noteOutput = wave_sawtooth(angle, phase);
@@ -81,8 +84,8 @@ public:
         note.angle = angle;
 
         // envelope:
-        noteOutput *= note.currentAmplitude;
-        noteOutput *= note.velocityFactor;
+        noteOutput = (noteOutput * note.currentAmplitude) >> SHIFT_FRAME_CHANNEL;
+        noteOutput = (noteOutput * note.velocityFactor) >> SHIFT_FRAME_CHANNEL;
 
         output += noteOutput;
 
@@ -102,15 +105,6 @@ public:
     bool run(Note &note, size_t i, size_t len) override
     {
         updateNoteEnvelope(note, millis());
-
-        // log env graph
-        // Serial.printf(">>%d %.2f : ", note.state, note.currentAmplitude);
-        // for (int i = 0; i < note.currentAmplitude * 10; i++)
-        // {
-        //     Serial.print("*");
-        // }
-        // Serial.println();
-
         return true;
     }
 };
@@ -121,12 +115,9 @@ class SynthesizerService_CLASS
 {
 
 private:
-    int bitrate = 44100;
-    float deltaTime = 1.0 / bitrate;
-    float time = 0;
-    float amplitude = 5000.0; // -32,768 to 32,767
-
+    uint32_t time = 0;
     NotesTimeUpdater notesTimeUpdater;
+    FRAME_CHANNEL_T amplitude = 10000.0; // -32,768 to 32,767
 
 public:
     SynthesizerService_CLASS()
@@ -151,13 +142,18 @@ public:
             runner.output = 0;
 
             MidiState.notesForeach(&runner);
-            float output = runner.output;
+            FRAME_CHANNEL_DOUBLE_T totalOutput = runner.output;
 
-            output = this->amplitude * output;
-            buffer[sample].channel1 = output;
-            buffer[sample].channel2 = output;
+            totalOutput = (totalOutput * amplitude) >> SHIFT_FRAME_CHANNEL;
 
-            time += deltaTime;
+            if (totalOutput > FRAME_CHANNEL_MAX)
+            {
+                totalOutput = FRAME_CHANNEL_MAX;
+            }
+            buffer[sample].channel1 = totalOutput;
+            buffer[sample].channel2 = totalOutput;
+
+            time += 1;
         }
     }
 

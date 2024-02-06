@@ -15,7 +15,7 @@
 #include "synthesizerService.h"
 
 //-------------------------------------------------------
-#define SAMPLE_RATE (44100)
+//#define SAMPLE_RATE (44100)
 // #define DMA_BUF_LEN (32)
 // #define DMA_NUM_BUF (2)
 #define DMA_BUF_LEN (64)

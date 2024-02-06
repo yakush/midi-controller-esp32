@@ -1,18 +1,19 @@
 #pragma once
 
 #include <Arduino.h>
+#include "config.h"
 
 struct __attribute__((packed)) I2S_Frame
 {
-    int16_t channel1;
-    int16_t channel2;
+    FRAME_CHANNEL_T channel1;
+    FRAME_CHANNEL_T channel2;
 
-    I2S_Frame(int v = 0)
+    I2S_Frame(FRAME_CHANNEL_T v = 0)
     {
         channel1 = channel2 = v;
     }
 
-    I2S_Frame(int ch1, int ch2)
+    I2S_Frame(FRAME_CHANNEL_T ch1, FRAME_CHANNEL_T ch2)
     {
         channel1 = ch1;
         channel2 = ch2;
