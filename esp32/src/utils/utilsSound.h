@@ -10,7 +10,7 @@ void logGraphChannelValue(String pre, int32_t val, byte maxStars, bool negatives
 {
     Serial.print(pre);
 
-    auto stars = (val * maxStars) / FRAME_CHANNEL_MAX;
+    auto stars = (val * maxStars) >> 16;
 
     if (negatives)
     {
@@ -31,14 +31,13 @@ void logGraphChannelValue(String pre, int32_t val, byte maxStars, bool negatives
         else
             Serial.print("-");
     }
-    Serial.println();
+    Serial.println(val);
 }
 
 /** basically  sampleTime*freq but mapped to angle space */
 FREQ_T calcWaveAngleFromTime(uint32_t sampleTime, FREQ_T freq)
 {
     uint32_t angle = uint32_t(freq) * sampleTime;
-    angle = (angle << SHIFT_WAVE_SAMPLE_RATE) >> SHIFT_FRAME_CHANNEL;
     angle = angle % WAVE_PI_2;
     return angle;
 }
@@ -191,7 +190,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         {
             // calc what's left of the decay (if it began) :
             unsigned long totalNotePlayTime = now - note.noteStartTime;
-            FRAME_CHANNEL_T decayLeft = std::min(
+            uint16_t decayLeft = std::min(
                 uint16_t(attack + decay - totalNotePlayTime),
                 uint16_t(decay));
             // use the smallest of release or decayLeft
@@ -236,16 +235,23 @@ void updateNoteRelease(Note &note, unsigned long now)
     note.startReleaseAmplitude = note.currentAmplitude;
 }
 
-//-------------------------------------------------------
-//-------------------------------------------------------
-void sigma(Note &note, unsigned long now)
+int16_t fastSigmoid_signed_32_to_16(int32_t val)
 {
-    if (note.state == EnvelopeState::DEAD || note.state == EnvelopeState::RELEASE)
-    {
-        return;
-    }
+    if (val > 163835)
+        return INT16_MAX;
+    else if (val > 131068)
+        return (val >> 6) + 29900;
+    else if (val > 98301)
+        return (val >> 4) + 23756;
+    else if (val > 75364)
+        return (val >> 3) + 17612;
+    else if (val > 32767)
+        return (val >> 2) + 8192;
+    else if (val > 0)
+        return (val >> 1) + 0;
 
-    note.state = EnvelopeState::RELEASE;
-    note.stateStartTime = now;
-    note.startReleaseAmplitude = note.currentAmplitude;
+    else if (val == 0)
+        return 0;
+
+    return -fastSigmoid_signed_32_to_16(-val);
 }

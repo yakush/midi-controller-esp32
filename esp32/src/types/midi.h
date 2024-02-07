@@ -34,10 +34,10 @@ struct Envelope
         this->release = 0;
     }
     Envelope(
-        FRAME_CHANNEL_T attack,
-        FRAME_CHANNEL_T decay,
+        uint16_t attack,
+        uint16_t decay,
         float sustainNormalized,
-        FRAME_CHANNEL_T release)
+        uint16_t release)
     {
         this->attack = attack;
         this->decay = decay;

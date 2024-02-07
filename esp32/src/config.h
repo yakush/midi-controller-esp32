@@ -23,8 +23,9 @@ const unsigned long UPDATE_ENVELOPE_TIME = 20; // millis
 // isp buffer elements sized
 #define FREQ_T uint16_t
 #define FREQ_MAX UINT16_MAX
-#define SHIFT_FRAME_CHANNEL (16)
-#define FRAME_CHANNEL_T uint16_t
-#define FRAME_CHANNEL_MAX UINT16_MAX
-#define FRAME_CHANNEL_DOUBLE_T uint32_t
-#define FRAME_CHANNEL_DOUBLE_MAX UINT32_MAX
+
+//#define SHIFT_FRAME_CHANNEL (16)
+#define FRAME_CHANNEL_T int16_t
+//#define FRAME_CHANNEL_MAX UINT16_MAX
+#define FRAME_CHANNEL_DOUBLE_T int32_t
+//#define FRAME_CHANNEL_DOUBLE_MAX UINT32_MAX

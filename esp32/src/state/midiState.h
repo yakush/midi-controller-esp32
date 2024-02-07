@@ -84,12 +84,12 @@ public:
             Envelope envelope = this->envelope();
             if (envelopeJson.containsKey("attack"))
             {
-                FRAME_CHANNEL_T attack = envelopeJson["attack"];
+                uint16_t attack = envelopeJson["attack"];
                 envelope.attack = attack;
             }
             if (envelopeJson.containsKey("decay"))
             {
-                FRAME_CHANNEL_T decay = envelopeJson["decay"];
+                uint16_t decay = envelopeJson["decay"];
                 envelope.decay = decay;
             }
             if (envelopeJson.containsKey("sustain"))
@@ -99,7 +99,7 @@ public:
             }
             if (envelopeJson.containsKey("release"))
             {
-                FRAME_CHANNEL_T release = envelopeJson["release"];
+                uint16_t release = envelopeJson["release"];
                 envelope.release = release;
             }
             this->envelope(envelope);

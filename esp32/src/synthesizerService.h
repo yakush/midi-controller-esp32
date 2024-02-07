@@ -115,6 +115,7 @@ private:
     NotesRunner notesRunner;
 
 public:
+
     SynthesizerService_CLASS()
     {
     }
@@ -143,10 +144,11 @@ public:
             totalOutput = (totalOutput * volume) >> 8;
 
             // trim:
-            if (totalOutput > INT16_MAX)
-                totalOutput = INT16_MAX;
-            else if (totalOutput < INT16_MIN)
-                totalOutput = INT16_MIN;
+            totalOutput = fastSigmoid_signed_32_to_16(totalOutput);
+            // if (totalOutput > INT16_MAX)
+            //     totalOutput = INT16_MAX;
+            // else if (totalOutput < INT16_MIN)
+            //     totalOutput = INT16_MIN;
 
             buffer[sample].channel1 = totalOutput;
             buffer[sample].channel2 = totalOutput;
