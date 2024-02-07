@@ -3,11 +3,11 @@
 #include "types/midi.h"
 
 //-------------------------------------------------------
-static FRAME_CHANNEL_T mapVal(int v, FRAME_CHANNEL_T fromMin, FRAME_CHANNEL_T fromMax, FRAME_CHANNEL_T toMin, FRAME_CHANNEL_T toMax, bool limit = true)
+static byte mapVal(int v, byte fromMin, byte fromMax, byte toMin, byte toMax, bool limit = true)
 {
-    FRAME_CHANNEL_DOUBLE_T fromRange = fromMax - fromMin;
-    FRAME_CHANNEL_DOUBLE_T toRange = toMax - toMin;
-    FRAME_CHANNEL_DOUBLE_T res = toMin + (toRange * ((v - fromMin) / fromRange));
+    uint16_t fromRange = fromMax - fromMin;
+    uint16_t toRange = toMax - toMin;
+    uint16_t res = toMin + (toRange * ((v - fromMin) / fromRange));
 
     if (limit && res < toMin)
     {
@@ -20,7 +20,7 @@ static FRAME_CHANNEL_T mapVal(int v, FRAME_CHANNEL_T fromMin, FRAME_CHANNEL_T fr
     return res;
 }
 
-FRAME_CHANNEL_T calcVelocityFactor(byte velocity)
+byte calcVelocityFactor(byte velocity)
 {
 
     // define graph:
@@ -32,12 +32,12 @@ FRAME_CHANNEL_T calcVelocityFactor(byte velocity)
         70,  // f
         100, // f
     };
-    static FRAME_CHANNEL_T vals[]{
-        (FRAME_CHANNEL_T)(0.20 * FRAME_CHANNEL_MAX), // pp
-        (FRAME_CHANNEL_T)(0.50 * FRAME_CHANNEL_MAX), // p
-        (FRAME_CHANNEL_T)(0.80 * FRAME_CHANNEL_MAX), // norm
-        (FRAME_CHANNEL_T)(0.92 * FRAME_CHANNEL_MAX), // f
-        (FRAME_CHANNEL_T)(0.98 * FRAME_CHANNEL_MAX), // f
+    static byte vals[]{
+        (byte)(0.20 * 0xFF), // pp
+        (byte)(0.50 * 0xFF), // p
+        (byte)(0.80 * 0xFF), // norm
+        (byte)(0.92 * 0xFF), // f
+        (byte)(0.98 * 0xFF), // f
     };
 
     // calc:
@@ -57,5 +57,5 @@ FRAME_CHANNEL_T calcVelocityFactor(byte velocity)
     }
 
     // over max stop
-    return FRAME_CHANNEL_MAX;
+    return 0xFF;
 }

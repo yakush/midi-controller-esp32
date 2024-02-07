@@ -20,7 +20,7 @@
 class NotesRunner : public NotesIterator
 {
 public:
-    FRAME_CHANNEL_DOUBLE_T output = 0;
+    int32_t output = 0;
     uint32_t sampleTime = 0;
 
     float lastEnvelopeUpdateMillis = 0;
@@ -53,7 +53,6 @@ public:
 
     bool run(Note &note, size_t i, size_t len) override
     {
-        FRAME_CHANNEL_DOUBLE_T noteOutput = 0;
         // abort dead notes
         if (note.state == EnvelopeState::DEAD)
         {
@@ -74,12 +73,14 @@ public:
         FREQ_T angle = calcWaveAngleFromTime(sampleTime, freq);
         FREQ_T phase = note.phase;
 
-        // wave (saw tooth for now):
+        // build wave
+        int32_t noteOutput = 0;
+
+        // saw tooth for now
         noteOutput = wave_sawtooth(angle, phase);
 
         // envelope:
-        noteOutput = (noteOutput * note.currentAmplitude) >> SHIFT_FRAME_CHANNEL;
-        noteOutput = (noteOutput * note.velocityFactor) >> SHIFT_FRAME_CHANNEL;
+        noteOutput = (noteOutput * note.currentAmplitude * note.velocityFactor) >> 16;
 
         output += noteOutput;
 
@@ -111,6 +112,7 @@ class SynthesizerService_CLASS
 private:
     uint32_t sampleTime = 0;
     NotesTimeUpdater notesTimeUpdater;
+    NotesRunner notesRunner;
 
 public:
     SynthesizerService_CLASS()
@@ -126,24 +128,26 @@ public:
 
     void writeBuffer(I2S_Frame *buffer, int32_t len)
     {
-        NotesRunner runner;
-        FRAME_CHANNEL_T volume = MidiState.volume();
+
+        byte volume = MidiState.volume();
         // write buffers
         for (int sample = 0; sample < len; sample++)
         {
             MidiState.sampleTime(sampleTime);
-            runner.sampleTime = sampleTime;
-            runner.output = 0;
+            notesRunner.sampleTime = sampleTime;
+            notesRunner.output = 0;
 
-            MidiState.notesForeach(&runner);
-            FRAME_CHANNEL_DOUBLE_T totalOutput = runner.output;
+            MidiState.notesForeach(&notesRunner);
+            int32_t totalOutput = notesRunner.output;
 
-            totalOutput = (totalOutput * volume) >> SHIFT_FRAME_CHANNEL;
+            totalOutput = (totalOutput * volume) >> 8;
 
-            if (totalOutput > FRAME_CHANNEL_MAX)
-            {
-                totalOutput = FRAME_CHANNEL_MAX;
-            }
+            // trim:
+            if (totalOutput > INT16_MAX)
+                totalOutput = INT16_MAX;
+            else if (totalOutput < INT16_MIN)
+                totalOutput = INT16_MIN;
+
             buffer[sample].channel1 = totalOutput;
             buffer[sample].channel2 = totalOutput;
 

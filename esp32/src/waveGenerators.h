@@ -8,19 +8,22 @@
 
 /**
  * @param angle: (0.0 - WAVE_PI (as 0..2PI))
- * @return range 0.0 - 1.0
+ * @return range (INT16_MIN - INT16_MAX) of signed int16_t
  */
-typedef FRAME_CHANNEL_T (*wave_generator_func_t)(FREQ_T angle, FREQ_T phase);
+typedef int16_t (*wave_generator_func_t)(FREQ_T angle, FREQ_T phase);
 
-FRAME_CHANNEL_T wave_sawtooth(FREQ_T angle, FREQ_T phase)
+int16_t wave_sawtooth(FREQ_T angle, FREQ_T phase)
 {
     angle = (uint32_t(angle) + phase) % WAVE_PI_2;
 
-    FRAME_CHANNEL_DOUBLE_T res;
+    int32_t res;
     res = angle < WAVE_PI
-              ? (angle << 1)
-              : (WAVE_PI_2 - angle) << 1;
-    res = (res << SHIFT_FRAME_CHANNEL) >> SHIFT_WAVE_SAMPLE_RATE; // *channelMax/sampleRate
+              ? (angle << 1) - INT16_MAX
+              : ((WAVE_PI_2 - angle) << 1) - INT16_MAX;
+
+    // no need - same shifts R and L:
+    // res = (res << 16) >> SHIFT_WAVE_SAMPLE_RATE; // *waveOutputMax/sampleRate
+
     return res;
 
     // return ((angle < PI ? (angle - PI_1_2) : (PI_3_2 - angle)) / PI);

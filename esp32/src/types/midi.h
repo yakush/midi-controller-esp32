@@ -18,13 +18,13 @@ enum EnvelopeState
 struct Envelope
 {
     /** time for attack */
-    FRAME_CHANNEL_T attack;
+    uint16_t attack;
     /** time for decay */
-    FRAME_CHANNEL_T decay;
+    uint16_t decay;
     /** LEVEL of sustain (decay to this level) */
-    FRAME_CHANNEL_T sustain;
+    byte sustain;
     /** time for release */
-    FRAME_CHANNEL_T release;
+    uint16_t release;
 
     Envelope()
     {
@@ -47,11 +47,11 @@ struct Envelope
 
     void sustainNormalized(float val)
     {
-        this->sustain = (FRAME_CHANNEL_T)(val * FRAME_CHANNEL_MAX);
+        this->sustain = (byte)(val * 0xFF);
     }
     float sustainNormalized()
     {
-        return (float)sustain / FRAME_CHANNEL_MAX;
+        return (float)sustain / 0xFF;
     }
 };
 
@@ -59,7 +59,7 @@ struct Note
 {
     byte pitch;
     byte velocity;
-    FRAME_CHANNEL_T velocityFactor;
+    byte velocityFactor;
     FREQ_T freq;
     FREQ_T phase;
     bool isDown;
@@ -67,8 +67,8 @@ struct Note
     EnvelopeState state;
     unsigned long noteStartTime;
     unsigned long stateStartTime;
-    FRAME_CHANNEL_T currentAmplitude;
-    FRAME_CHANNEL_T startReleaseAmplitude;
+    byte currentAmplitude;
+    byte startReleaseAmplitude;
 
     Note()
     {
@@ -82,8 +82,8 @@ struct Note
         this->state = EnvelopeState::PRESSED;
         this->noteStartTime = 0;
         this->stateStartTime = 0;
-        this->currentAmplitude = UINT16_MAX;
-        this->startReleaseAmplitude = UINT16_MAX;
+        this->currentAmplitude = 0xFF;
+        this->startReleaseAmplitude = 0xFF;
     }
 
     Note(

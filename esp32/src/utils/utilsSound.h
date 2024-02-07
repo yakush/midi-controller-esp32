@@ -6,15 +6,30 @@
 #include "assets/midiNotesInts.h"
 #include "types/midi.h"
 
-void logGraphChannelValue(String pre, FRAME_CHANNEL_T val, byte maxStars)
+void logGraphChannelValue(String pre, int32_t val, byte maxStars, bool negatives = false)
 {
-    auto stars = (FRAME_CHANNEL_DOUBLE_T)val * maxStars / FRAME_CHANNEL_MAX;
-
     Serial.print(pre);
 
-    for (byte i = 0; i < stars; i++)
+    auto stars = (val * maxStars) / FRAME_CHANNEL_MAX;
+
+    if (negatives)
     {
-        Serial.print("*");
+        // negative side
+        for (byte i = 0; i < maxStars; i++)
+        {
+            if (i >= maxStars + stars)
+                Serial.print("*");
+            else
+                Serial.print("-");
+        }
+    }
+
+    for (byte i = 0; i < maxStars; i++)
+    {
+        if (i <= stars)
+            Serial.print("*");
+        else
+            Serial.print("-");
     }
     Serial.println();
 }
@@ -112,9 +127,10 @@ static EnvelopeState nextState(Envelope &envelope, EnvelopeState state)
 void updateNoteEnvelope(Note &note, unsigned long now)
 {
     // helper var
-    static FRAME_CHANNEL_T max = FRAME_CHANNEL_MAX;
+    static byte max = 0xFF;
 
-    FRAME_CHANNEL_DOUBLE_T output = 0;
+    // double size for extra space for calcs
+    uint16_t output = 0;
 
     auto dt = now - note.stateStartTime;
 
@@ -139,7 +155,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (dt > attack)
             dt = attack;
         // max*(dt/attack)
-        output = (FRAME_CHANNEL_DOUBLE_T)max * dt / attack;
+        output = (uint16_t)max * dt / attack;
 
         if (dt >= attack)
         {
@@ -152,7 +168,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (dt > decay)
             dt = decay;
         // max - ((max - sustain) * (dt/decay))
-        output = (FRAME_CHANNEL_DOUBLE_T)max - (((FRAME_CHANNEL_DOUBLE_T)max - sustain) * dt / decay);
+        output = (uint16_t)max - (((uint16_t)max - sustain) * dt / decay);
 
         if (dt >= decay)
         {
@@ -174,10 +190,10 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (sustain < 0)
         {
             // calc what's left of the decay (if it began) :
-            FRAME_CHANNEL_T totalNotePlayTime = now - note.noteStartTime;
+            unsigned long totalNotePlayTime = now - note.noteStartTime;
             FRAME_CHANNEL_T decayLeft = std::min(
-                FRAME_CHANNEL_T(attack + decay - totalNotePlayTime),
-                FRAME_CHANNEL_T(decay));
+                uint16_t(attack + decay - totalNotePlayTime),
+                uint16_t(decay));
             // use the smallest of release or decayLeft
             stateTime = std::min(release, decayLeft);
         }
@@ -186,7 +202,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
             dt = stateTime;
 
         // releaseMaxAmplitude - releaseMaxAmplitude*(dt/stateTime)
-        output = releaseMaxAmplitude - ((FRAME_CHANNEL_DOUBLE_T)releaseMaxAmplitude * dt / stateTime);
+        output = releaseMaxAmplitude - ((uint16_t)releaseMaxAmplitude * dt / stateTime);
 
         if (dt >= stateTime)
         {
@@ -201,14 +217,28 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     }
 
     // check and set
-    if (output > FRAME_CHANNEL_MAX)
+    if (output > max)
     {
-        output = FRAME_CHANNEL_MAX;
+        output = max;
     }
     note.currentAmplitude = output;
 }
 
 void updateNoteRelease(Note &note, unsigned long now)
+{
+    if (note.state == EnvelopeState::DEAD || note.state == EnvelopeState::RELEASE)
+    {
+        return;
+    }
+
+    note.state = EnvelopeState::RELEASE;
+    note.stateStartTime = now;
+    note.startReleaseAmplitude = note.currentAmplitude;
+}
+
+//-------------------------------------------------------
+//-------------------------------------------------------
+void sigma(Note &note, unsigned long now)
 {
     if (note.state == EnvelopeState::DEAD || note.state == EnvelopeState::RELEASE)
     {

@@ -18,7 +18,7 @@ const String host_path = "/log";
 #define WAVE_SAMPLE_RATE (0xffff)
 #define SHIFT_WAVE_SAMPLE_RATE (16)
 
-const unsigned long UPDATE_ENVELOPE_TIME = 50; // millis
+const unsigned long UPDATE_ENVELOPE_TIME = 20; // millis
 
 // isp buffer elements sized
 #define FREQ_T uint16_t

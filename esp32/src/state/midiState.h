@@ -28,7 +28,7 @@ class MidiState_Class
 {
 private:
     STATE_LOCK_DEFINE(_mutex);
-    FRAME_CHANNEL_T _volume = INITIAL_VOLUME_NORMALIZED * FRAME_CHANNEL_MAX;
+    byte _volume = INITIAL_VOLUME_NORMALIZED * 0xFF;
     /** range (-2 .. +2) semitones */
     float _pitchBend = 0;
     float _pitchBendBias = INITIAL_PITCH_BEND_BIAS;
@@ -110,9 +110,9 @@ public:
         }
     }
 
-    FRAME_CHANNEL_T volume() { return _volume; }
-    float volumeNormalized() { return (float)_volume / FRAME_CHANNEL_MAX; }
-    void volume(FRAME_CHANNEL_T value)
+    byte volume() { return _volume; }
+    float volumeNormalized() { return (float)_volume / 0xFF; }
+    void volume(byte value)
     {
         STATE_LOCK(_mutex);
         _volume = value;
@@ -120,7 +120,7 @@ public:
     }
     void volume(float normalized)
     {
-        volume((FRAME_CHANNEL_T)(normalized * FRAME_CHANNEL_MAX));
+        volume((byte)(normalized * 0xFF));
     }
 
     Envelope envelope() { return _envelope; }
