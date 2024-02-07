@@ -1,8 +1,10 @@
 #pragma once
 #include <Arduino.h>
 #include <mutex>
+#include <ArduinoJson.h>
 #include "state.h"
 #include "types/midi.h"
+#include "utils/utilsSound.h"
 
 class NotesIterator
 {
@@ -26,21 +28,106 @@ class MidiState_Class
 {
 private:
     STATE_LOCK_DEFINE(_mutex);
-    byte _volume = 30;
+    FRAME_CHANNEL_T _volume = INITIAL_VOLUME_NORMALIZED * FRAME_CHANNEL_MAX;
     /** range (-2 .. +2) semitones */
     float _pitchBend = 0;
+    float _pitchBendBias = INITIAL_PITCH_BEND_BIAS;
     std::vector<Note> _notesPlaying;
-    /** last played time */
+
+    /** last played sample-time */
     uint32_t _sampleTime = 0;
-    
-    Envelope _envelope;
-    
+
+    Envelope _envelope = Envelope(100, 200, 0.8, 300);
+
 public:
-    byte volume() { return _volume; }
-    void volume(byte value)
+    void writeToJson(JsonVariant &json)
+    {
+        json["volume"] = this->volumeNormalized();
+        json["pitchBend"] = this->pitchBend();
+        json["pitchBendBias"] = this->pitchBendBias();
+        auto envelopeJson = json.createNestedObject("envelope");
+        auto envelope = this->envelope();
+        envelopeJson["attack"] = envelope.attack;
+        envelopeJson["decay"] = envelope.decay;
+        envelopeJson["sustain"] = envelope.sustainNormalized();
+        envelopeJson["release"] = envelope.release;
+    }
+
+    void readFromJson(JsonVariant &json, bool log = false)
+    {
+        auto jsonObj = json.as<JsonObject>();
+
+        if (jsonObj.containsKey("volume"))
+        {
+            float volume = jsonObj["volume"];
+            this->volume(volume);
+            if (log)
+                Logger.printf("got volume: %.2f\n", volume);
+        }
+        if (jsonObj.containsKey("pitchBend"))
+        {
+            float pitchBend = jsonObj["pitchBend"];
+            this->pitchBend(pitchBend);
+            if (log)
+                Logger.printf("got pitchBend: %.2f\n", pitchBend);
+        }
+        if (jsonObj.containsKey("pitchBendBias"))
+        {
+            float pitchBendBias = jsonObj["pitchBendBias"];
+            this->pitchBendBias(pitchBendBias);
+            if (log)
+                Logger.printf("got pitchBendBias: %.2f\n", pitchBendBias);
+        }
+        if (jsonObj.containsKey("envelope"))
+        {
+            JsonObject envelopeJson = jsonObj["envelope"];
+            Envelope envelope = this->envelope();
+            if (envelopeJson.containsKey("attack"))
+            {
+                FRAME_CHANNEL_T attack = envelopeJson["attack"];
+                envelope.attack = attack;
+            }
+            if (envelopeJson.containsKey("decay"))
+            {
+                FRAME_CHANNEL_T decay = envelopeJson["decay"];
+                envelope.decay = decay;
+            }
+            if (envelopeJson.containsKey("sustain"))
+            {
+                float sustain = envelopeJson["sustain"];
+                envelope.sustainNormalized(sustain);
+            }
+            if (envelopeJson.containsKey("release"))
+            {
+                FRAME_CHANNEL_T release = envelopeJson["release"];
+                envelope.release = release;
+            }
+            this->envelope(envelope);
+            if (log)
+            {
+                Logger.printf("got envelope: [%d, %d, %.2f, %d]\n", envelope.attack, envelope.decay, envelope.sustainNormalized(), envelope.release);
+            }
+        }
+    }
+
+    FRAME_CHANNEL_T volume() { return _volume; }
+    float volumeNormalized() { return (float)_volume / FRAME_CHANNEL_MAX; }
+    void volume(FRAME_CHANNEL_T value)
     {
         STATE_LOCK(_mutex);
         _volume = value;
+        STATE_UNLOCK(_mutex);
+    }
+    void volume(float normalized)
+    {
+        volume((FRAME_CHANNEL_T)(normalized * FRAME_CHANNEL_MAX));
+    }
+
+    Envelope envelope() { return _envelope; }
+    void envelope(Envelope value)
+    {
+        STATE_LOCK(_mutex);
+        _envelope = value;
         STATE_UNLOCK(_mutex);
     }
 
@@ -57,6 +144,14 @@ public:
     {
         STATE_LOCK(_mutex);
         _pitchBend = value;
+        STATE_UNLOCK(_mutex);
+    }
+
+    float pitchBendBias() { return _pitchBendBias; }
+    void pitchBendBias(float value)
+    {
+        STATE_LOCK(_mutex);
+        _pitchBendBias = value;
         STATE_UNLOCK(_mutex);
     }
 
@@ -98,26 +193,24 @@ public:
 
     void releaseNote(byte pitch)
     {
+        bool died = false;
+
         STATE_LOCK(_mutex);
         for (size_t i = 0; i < _notesPlaying.size(); i++)
         {
             if (_notesPlaying[i].pitch == pitch)
             {
-                if (
-                    _notesPlaying[i].state != EnvelopeState::DEAD &&
-                    _notesPlaying[i].state != EnvelopeState::RELEASE)
-                {
-                    _notesPlaying[i].state = EnvelopeState::RELEASE;
-                    _notesPlaying[i].stateStartTime = millis();
-                    _notesPlaying[i].startReleaseAmplitude = _notesPlaying[i].currentAmplitude;
-
-                    // log the change
-                    logNotes();
-                }
+                updateNoteRelease(_notesPlaying[i], millis());
+                died = _notesPlaying[i].state == EnvelopeState::DEAD;
                 break;
             }
         }
         STATE_UNLOCK(_mutex);
+
+        if (died)
+        {
+            notesCleanDead();
+        }
     }
 
     void removeAllNotes()

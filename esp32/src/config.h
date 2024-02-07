@@ -11,6 +11,9 @@ const String host_ip = "192.168.1.14";
 const int host_port = 3000;
 const String host_path = "/log";
 
+#define INITIAL_PITCH_BEND_BIAS (-0.84)
+#define INITIAL_VOLUME_NORMALIZED (0.3)
+
 #define SAMPLE_RATE (44100)
 #define WAVE_SAMPLE_RATE (0xffff)
 #define SHIFT_WAVE_SAMPLE_RATE (16)

@@ -41,8 +41,17 @@ struct Envelope
     {
         this->attack = attack;
         this->decay = decay;
-        this->sustain = (FRAME_CHANNEL_T)(sustainNormalized * FRAME_CHANNEL_MAX);
+        this->sustainNormalized(sustainNormalized);
         this->release = release;
+    }
+
+    void sustainNormalized(float val)
+    {
+        this->sustain = (FRAME_CHANNEL_T)(val * FRAME_CHANNEL_MAX);
+    }
+    float sustainNormalized()
+    {
+        return (float)sustain / FRAME_CHANNEL_MAX;
     }
 };
 
@@ -55,8 +64,8 @@ struct Note
     FREQ_T phase;
     bool isDown;
     Envelope envelope;
-    unsigned long lastEnvelopeUpdateTime;
     EnvelopeState state;
+    unsigned long noteStartTime;
     unsigned long stateStartTime;
     FRAME_CHANNEL_T currentAmplitude;
     FRAME_CHANNEL_T startReleaseAmplitude;
@@ -70,8 +79,8 @@ struct Note
         this->phase = 0;
         this->isDown = true;
         this->envelope = Envelope();
-        this->lastEnvelopeUpdateTime = 0;
         this->state = EnvelopeState::PRESSED;
+        this->noteStartTime = 0;
         this->stateStartTime = 0;
         this->currentAmplitude = UINT16_MAX;
         this->startReleaseAmplitude = UINT16_MAX;
@@ -88,6 +97,7 @@ struct Note
         this->velocityFactor = calcVelocityFactor(velocity);
         this->freq = MIDI_NOTES[pitch];
         this->envelope = envelope;
+        this->noteStartTime = startTime;
         this->stateStartTime = startTime;
     }
 

@@ -111,7 +111,6 @@ class SynthesizerService_CLASS
 private:
     uint32_t sampleTime = 0;
     NotesTimeUpdater notesTimeUpdater;
-    FRAME_CHANNEL_T amplitude = 10000.0; // -32,768 to 32,767
 
 public:
     SynthesizerService_CLASS()
@@ -128,7 +127,7 @@ public:
     void writeBuffer(I2S_Frame *buffer, int32_t len)
     {
         NotesRunner runner;
-
+        FRAME_CHANNEL_T volume = MidiState.volume();
         // write buffers
         for (int sample = 0; sample < len; sample++)
         {
@@ -139,7 +138,7 @@ public:
             MidiState.notesForeach(&runner);
             FRAME_CHANNEL_DOUBLE_T totalOutput = runner.output;
 
-            totalOutput = (totalOutput * amplitude) >> SHIFT_FRAME_CHANNEL;
+            totalOutput = (totalOutput * volume) >> SHIFT_FRAME_CHANNEL;
 
             if (totalOutput > FRAME_CHANNEL_MAX)
             {

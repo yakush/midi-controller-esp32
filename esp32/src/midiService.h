@@ -53,9 +53,9 @@ void handleNoteOn(byte channel, byte pitch, byte velocity)
 {
     // Logger.printf("note on %d %d %d\n", channel, pitch, velocity);
 
-    Envelope envelope(1000, 1000, 0.5, 1000);
-    //Envelope envelope(100, 200, 0.8, 300);
-
+    // Envelope envelope(1000, 1000, 0.5, 1000);
+    // Envelope envelope(100, 200, 0.8, 300);
+    Envelope envelope = MidiState.envelope();
     Note note(pitch, velocity, envelope);
     note.freq = getNoteFrequency(note.pitch, MidiState.pitchBend());
     MidiState.addNote(note);
@@ -81,6 +81,7 @@ void handlePitchBend(byte channel, int change)
     // change : +/-0x2000 = +/-8192
     // convert to (-2 - +2)
     float val = ((float)change) / 0x1000;
+    val = val + MidiState.pitchBendBias();
     MidiState.pitchBend(val);
 
     auto updater = PitchBendUpdater(val);

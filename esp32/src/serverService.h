@@ -3,10 +3,14 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
+#include <AsyncJson.h>
 #include "SPIFFS.h"
 // #include <Arduino_JSON.h>
 #include "config.h"
 #include "logger.h"
+#include "state/midiState.h"
+#include "state/appState.h"
 
 // JSONVar readings;
 
@@ -142,10 +146,48 @@ public:
 
         // server.serveStatic("/", SPIFFS, "/");
 
-        _server.on("/test", HTTP_GET, [](AsyncWebServerRequest *request)
-                   { request->send(200, "text/html", "hello"); });
+        //-------------------------------------------------------
+        // ALL *
+        _server.onNotFound([](AsyncWebServerRequest *request)
+                           { request->send(200, "text/html", "no such page"); });
 
         //-------------------------------------------------------
+        // GET /test
+        _server.on(
+            "/test", HTTP_GET,
+            [](AsyncWebServerRequest *request)
+            { request->send(200, "text/html", "hello"); });
+
+        //-------------------------------------------------------
+        // GET + POST /midi-state
+        _server.on(
+            "/midi-state", HTTP_GET,
+            [](AsyncWebServerRequest *request)
+            {
+                AsyncJsonResponse *response = new AsyncJsonResponse();
+                auto root = response->getRoot();
+                MidiState.writeToJson(root);
+                response->setLength();
+                request->send(response);
+            });
+
+        AsyncCallbackJsonWebHandler *handler_midi_state = new AsyncCallbackJsonWebHandler(
+            "/midi-state", [](AsyncWebServerRequest *request, JsonVariant &json)
+            {
+                MidiState.readFromJson(json,true);
+
+                //reply with new state
+                AsyncJsonResponse *response = new AsyncJsonResponse();
+                auto root = response->getRoot();
+                MidiState.writeToJson(root);
+                response->setLength();
+                request->send(response);
+            ; });
+        _server.addHandler(handler_midi_state);
+
+        //-------------------------------------------------------
+        //-------------------------------------------------------
+
         _server.begin();
     }
 
