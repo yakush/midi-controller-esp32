@@ -73,7 +73,6 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     auto decay = note.envelope.decay;
     auto sustain = note.envelope.sustain;
     auto release = note.envelope.release;
-    auto decayLevel = note.envelope.decayLevel;
 
     auto releaseMaxAmplitude = note.startReleaseAmplitude;
 
@@ -93,35 +92,29 @@ void updateNoteEnvelope(Note &note, unsigned long now)
 
         if (dt > attack)
         {
-            note.state = EnvelopeState::DECAY;
             note.stateStartTime = now;
+            note.state = EnvelopeState::DECAY;
         }
     }
     else if (note.state == EnvelopeState::DECAY)
     {
-        // max - ((max - decayLevel) * (dt/attack))
-        output = (FRAME_CHANNEL_DOUBLE_T)max - (((FRAME_CHANNEL_DOUBLE_T)max - decayLevel) * dt / decay);
+        // max - ((max - sustain) * (dt/decay))
+        output = (FRAME_CHANNEL_DOUBLE_T)max - (((FRAME_CHANNEL_DOUBLE_T)max - sustain) * dt / decay);
 
         if (dt > decay)
         {
-            note.state = EnvelopeState::SUSTAIN;
             note.stateStartTime = now;
+
+            // if sustain is 0 - go directly to DEAD
+            note.state = sustain > 0
+                             ? EnvelopeState::SUSTAIN
+                             : EnvelopeState::DEAD;
         }
     }
     else if (note.state == EnvelopeState::SUSTAIN)
     {
-        // = decayLevel
-        output = decayLevel;
-        // sustain=0 means no note decay (stays forever)
-        if (dt > sustain)
-        {
-            if (sustain > 0)
-            {
-                note.state = EnvelopeState::RELEASE;
-                note.startReleaseAmplitude = output;
-                note.stateStartTime = now;
-            }
-        }
+        // = sustain level
+        output = sustain;
     }
     else if (note.state == EnvelopeState::RELEASE)
     {
@@ -132,8 +125,8 @@ void updateNoteEnvelope(Note &note, unsigned long now)
 
         if (dt > release)
         {
-            note.state = EnvelopeState::DEAD;
             note.stateStartTime = now;
+            note.state = EnvelopeState::DEAD;
             output = 0;
         }
     }

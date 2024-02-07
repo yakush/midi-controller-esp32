@@ -32,7 +32,9 @@ private:
     std::vector<Note> _notesPlaying;
     /** last played time */
     uint32_t _sampleTime = 0;
-
+    
+    Envelope _envelope;
+    
 public:
     byte volume() { return _volume; }
     void volume(byte value)

@@ -14,6 +14,7 @@
 
 #include "utils/utilsSound.h"
 #include "waveGenerators.h"
+#include "../test/test_waves.h"
 
 void setup()
 {

@@ -41,7 +41,7 @@ void test_waves()
   logGraphChannelValue("wave: ", wave_sawtooth(WAVE_PI_2 * (10.0 / 10), 0), 15);
 
   static const size_t NUM = 1000;
-  Envelope envelope(100, 300, -1, 200, 1.5);
+  Envelope envelope(100, 300, 0.8, 200);
   Note note(60, 60, envelope);
   MidiState.addNote(note);
   I2S_Frame buffer[NUM];
@@ -69,7 +69,7 @@ void test_waves()
   Logger.printf("0 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
-    Envelope envelope(100, 300, -1, 200, 1.5);
+    Envelope envelope(100, 300, 0.8, 200);
     Note note(70, 60, envelope);
     MidiState.addNote(note);
   }
@@ -83,7 +83,7 @@ void test_waves()
   Logger.printf("1 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
-    Envelope envelope(100, 300, -1, 200, 1.5);
+    Envelope envelope(100, 300, 0.8, 200);
     Note note(80, 60, envelope);
     MidiState.addNote(note);
   }
@@ -97,7 +97,7 @@ void test_waves()
   Logger.printf("2 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
-    Envelope envelope(100, 300, -1, 200, 1.5);
+    Envelope envelope(100, 300, 0.8, 200);
     Note note(90, 60, envelope);
     MidiState.addNote(note);
   }
@@ -111,7 +111,7 @@ void test_waves()
   Logger.printf("3 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
-    Envelope envelope(100, 300, -1, 200, 1.5);
+    Envelope envelope(100, 300, 0.8, 200);
     Note note(100, 60, envelope);
     MidiState.addNote(note);
   }

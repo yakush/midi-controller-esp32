@@ -17,11 +17,14 @@ enum EnvelopeState
 
 struct Envelope
 {
+    /** time for attack */
     FRAME_CHANNEL_T attack;
+    /** time for decay */
     FRAME_CHANNEL_T decay;
+    /** LEVEL of sustain (decay to this level) */
     FRAME_CHANNEL_T sustain;
+    /** time for release */
     FRAME_CHANNEL_T release;
-    FRAME_CHANNEL_T decayLevel;
 
     Envelope()
     {
@@ -29,21 +32,17 @@ struct Envelope
         this->decay = 0;
         this->sustain = 0;
         this->release = 0;
-        this->decayLevel = FRAME_CHANNEL_MAX; // no decay
     }
     Envelope(
         FRAME_CHANNEL_T attack,
         FRAME_CHANNEL_T decay,
-        FRAME_CHANNEL_T sustain,
-        FRAME_CHANNEL_T release,
-        float decayLevelNormalized = 0.8)
+        float sustainNormalized,
+        FRAME_CHANNEL_T release)
     {
         this->attack = attack;
         this->decay = decay;
-        this->sustain = sustain;
+        this->sustain = (FRAME_CHANNEL_T)(sustainNormalized * FRAME_CHANNEL_MAX);
         this->release = release;
-        this->decayLevel = decayLevel;
-        this->decayLevel = (FRAME_CHANNEL_T)(decayLevelNormalized * FRAME_CHANNEL_MAX);
     }
 };
 
