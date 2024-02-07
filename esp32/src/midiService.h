@@ -26,14 +26,21 @@ public:
     bool run(Note &note, size_t i, size_t len) override
     {
         // TODO: phase matching doesn't work
-        auto oldAngle = note.angle;
-        auto oldFreq = note.freq;
-        auto oldPhase = note.phase;
-        auto time = oldAngle / oldFreq;
 
-        auto newFreq = getNoteFrequency(note.pitch, pitchBend);
-        auto newPhase = time * (oldFreq - newFreq) + oldPhase;
-        newPhase = normalizeBetween(newPhase, 0, PI_2);
+        auto time = MidiState.sampleTime();
+
+        FREQ_T oldFreq = note.freq;
+        FREQ_T oldPhase = note.phase;
+
+        FREQ_T newFreq = getNoteFrequency(note.pitch, pitchBend);
+        int64_t newPhase = (int64_t)oldPhase + time * ((int64_t)oldFreq - newFreq);
+
+        // normalize:
+        if (newPhase < 0)
+        {
+            newPhase = newPhase + FREQ_MAX;
+        }
+        newPhase = newPhase % WAVE_PI_2;
 
         note.freq = newFreq;
         note.phase = newPhase;
@@ -46,7 +53,7 @@ void handleNoteOn(byte channel, byte pitch, byte velocity)
 {
     // Logger.printf("note on %d %d %d\n", channel, pitch, velocity);
 
-    //Envelope envelope(1000, 1000, -1, 1000, 0.5);
+    // Envelope envelope(1000, 1000, -1, 1000, 0.5);
     Envelope envelope(100, 200, -1, 300, 0.8);
     Note note(pitch, velocity, envelope);
     note.freq = getNoteFrequency(note.pitch, MidiState.pitchBend());

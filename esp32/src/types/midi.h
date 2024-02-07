@@ -53,7 +53,6 @@ struct Note
     byte velocity;
     FRAME_CHANNEL_T velocityFactor;
     FREQ_T freq;
-    FREQ_T angle;
     FREQ_T phase;
     bool isDown;
     Envelope envelope;
@@ -69,7 +68,6 @@ struct Note
         this->velocity = 0;
         this->velocityFactor = calcVelocityFactor(0);
         this->freq = MIDI_NOTES[0];
-        this->angle = 0;
         this->phase = 0;
         this->isDown = true;
         this->envelope = Envelope();

@@ -21,7 +21,7 @@ class NotesRunner : public NotesIterator
 {
 public:
     FRAME_CHANNEL_DOUBLE_T output = 0;
-    uint32_t time = 0;
+    uint32_t sampleTime = 0;
 
     float lastEnvelopeUpdateMillis = 0;
     bool requestEnvelopeUpdate = false;
@@ -71,17 +71,11 @@ public:
         // generate wave and add to output
         // angle is (0..WAVE_PI_2) as in range of (0..pi)
         FREQ_T freq = note.freq;
-        FREQ_T angle = uint32_t(freq) * time;
-        angle = (angle << SHIFT_WAVE_SAMPLE_RATE) >> SHIFT_FRAME_CHANNEL;
-        angle = angle % WAVE_PI_2;
-
+        FREQ_T angle = calcWaveAngleFromTime(sampleTime, freq);
         FREQ_T phase = note.phase;
 
         // wave (saw tooth for now):
         noteOutput = wave_sawtooth(angle, phase);
-
-        // save angle (for pitch bend changes , need to know the last angle)
-        note.angle = angle;
 
         // envelope:
         noteOutput = (noteOutput * note.currentAmplitude) >> SHIFT_FRAME_CHANNEL;
@@ -115,7 +109,7 @@ class SynthesizerService_CLASS
 {
 
 private:
-    uint32_t time = 0;
+    uint32_t sampleTime = 0;
     NotesTimeUpdater notesTimeUpdater;
     FRAME_CHANNEL_T amplitude = 10000.0; // -32,768 to 32,767
 
@@ -138,7 +132,8 @@ public:
         // write buffers
         for (int sample = 0; sample < len; sample++)
         {
-            runner.time = time;
+            MidiState.sampleTime(sampleTime);
+            runner.sampleTime = sampleTime;
             runner.output = 0;
 
             MidiState.notesForeach(&runner);
@@ -153,7 +148,7 @@ public:
             buffer[sample].channel1 = totalOutput;
             buffer[sample].channel2 = totalOutput;
 
-            time += 1;
+            sampleTime += 1;
         }
     }
 

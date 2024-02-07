@@ -30,6 +30,8 @@ private:
     /** range (-2 .. +2) semitones */
     float _pitchBend = 0;
     std::vector<Note> _notesPlaying;
+    /** last played time */
+    uint32_t _sampleTime = 0;
 
 public:
     byte volume() { return _volume; }
@@ -37,6 +39,14 @@ public:
     {
         STATE_LOCK(_mutex);
         _volume = value;
+        STATE_UNLOCK(_mutex);
+    }
+
+    uint32_t sampleTime() { return _sampleTime; }
+    void sampleTime(uint32_t value)
+    {
+        STATE_LOCK(_mutex);
+        _sampleTime = value;
         STATE_UNLOCK(_mutex);
     }
 

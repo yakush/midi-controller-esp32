@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "config.h"
+#include "consts.h"
 #include "assets/midiNotesInts.h"
 #include "types/midi.h"
 
@@ -15,6 +16,15 @@ void logGraphChannelValue(String pre, FRAME_CHANNEL_T val, byte maxStars)
         Serial.print("*");
     }
     Serial.println();
+}
+
+/** basically  sampleTime*freq but mapped to angle space */
+FREQ_T calcWaveAngleFromTime(uint32_t sampleTime, FREQ_T freq)
+{
+    uint32_t angle = uint32_t(freq) * sampleTime;
+    angle = (angle << SHIFT_WAVE_SAMPLE_RATE) >> SHIFT_FRAME_CHANNEL;
+    angle = angle % WAVE_PI_2;
+    return angle;
 }
 
 FREQ_T getNoteFrequency(byte pitch, float pitchBend)
