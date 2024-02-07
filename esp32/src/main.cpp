@@ -7,6 +7,7 @@
 #include "midiService.h"
 #include "speakerService.h"
 #include "synthesizerService.h"
+#include "UiService.h"
 #include "webLogger.h"
 #include "logger.h"
 #include "state/midiState.h"
@@ -20,6 +21,8 @@ void setup()
 {
   Serial.begin(115200);
   Logger.add(&Serial);
+
+  UiService.begin();
 
   // init WIFI:
   WiFi.mode(WIFI_STA);
@@ -53,7 +56,10 @@ void setup()
     Serial.println("MAX i2s driver initialization Failed");
     // return;
   };
+
+  AppState.ready(true);
 }
+//-------------------------------------------------------
 
 class EnvLogger : public NotesIterator
 {
@@ -69,13 +75,15 @@ public:
     return true;
   }
 };
+//-------------------------------------------------------
 
 void loop()
 {
   ServerService.loop();
   MidiService.loop();
   SynthesizerService.loop();
-  
+  UiService.loop();
+
   // { // log envelope graph
   //   static unsigned long last = millis();
   //   if (millis() > last + 50)

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <MIDI.h>
+#include <midi_Defs.h>
 #include "state/midiState.h"
 #include "types/midi.h"
 #include "consts.h"
@@ -69,12 +70,18 @@ void handleNoteOff(byte channel, byte pitch, byte velocity)
     MidiState.releaseNote(pitch);
 }
 
-void handleControlChange(byte channel, byte a, byte b)
+void handleControlChange(byte channel, byte type, byte val)
 {
-    Logger.printf("ControlChange %d %d %d\n", channel, a, b);
+    Logger.printf("ControlChange %d %d %d\n", channel, type, val);
+
     // TODO: set  stuff
-    // a=1 - modulation  b = [0..127]
-    // a=7 - volume      b = [0..127]
+    if (type == midi::MidiControlChangeNumber::ChannelVolume)
+    {
+        MidiState.volume(val);
+    }
+    else if (type == midi::MidiControlChangeNumber::ModulationWheel)
+    {
+    }
 }
 void handlePitchBend(byte channel, int change)
 {
@@ -132,19 +139,19 @@ public:
         MIDI.setHandleError(handleError);                 // ([](int8_t err) -> void { Serial.println("Error"); });
         MIDI.setHandleSystemReset(handleSystemReset);     // ([]() -> void { Serial.println("SystemReset"); });
 
-        // MIDI.setHandleAfterTouchPoly(handleAfterTouchPoly);             // ([](byte channel, byte note, byte velocity) -> void { Serial.println("AfterTouchPoly"); });
-        // MIDI.setHandleProgramChange(handleProgramChange);               // ([](byte channel, byte) -> void { Serial.println("ProgramChange"); });
-        // MIDI.setHandleAfterTouchChannel(handleAfterTouchChannel);       // ([](byte channel, byte) -> void { Serial.println("AfterTouchChannel"); });
-        // MIDI.setHandleSystemExclusive(handleSystemExclusive);           // ([](byte *array, unsigned size) -> void { Serial.println("SystemExclusive"); });
-        // MIDI.setHandleTimeCodeQuarterFrame(handleTimeCodeQuarterFrame); // ([](byte data) -> void { Serial.println("TimeCodeQuarterFrame"); });
-        // MIDI.setHandleSongPosition(handleSongPosition);                 // ([](unsigned beats) -> void { Serial.println("SongPosition"); });
-        // MIDI.setHandleSongSelect(handleSongSelect);                     // ([](byte songnumber) -> void { Serial.println("SongSelect"); });
-        // MIDI.setHandleTuneRequest(handleTuneRequest);                   // ([]() -> void { Serial.println("TuneRequest"); });
-        // MIDI.setHandleClock(handleClock);                               // ([]() -> void { Serial.println("Clock"); });
-        // MIDI.setHandleStart(handleStart);                               // ([]() -> void { Serial.println("Start"); });
-        // MIDI.setHandleTick(handleTick);                                 // ([]() -> void { Serial.println("Tick"); });
-        // MIDI.setHandleContinue(handleContinue);                         // ([]() -> void { Serial.println("Continue"); });
-        // MIDI.setHandleStop(handleStop);                                 // ([]() -> void { Serial.println("Stop"); });
+        MIDI.setHandleAfterTouchPoly(handleAfterTouchPoly);             // ([](byte channel, byte note, byte velocity) -> void { Serial.println("AfterTouchPoly"); });
+        MIDI.setHandleProgramChange(handleProgramChange);               // ([](byte channel, byte) -> void { Serial.println("ProgramChange"); });
+        MIDI.setHandleAfterTouchChannel(handleAfterTouchChannel);       // ([](byte channel, byte) -> void { Serial.println("AfterTouchChannel"); });
+        MIDI.setHandleSystemExclusive(handleSystemExclusive);           // ([](byte *array, unsigned size) -> void { Serial.println("SystemExclusive"); });
+        MIDI.setHandleTimeCodeQuarterFrame(handleTimeCodeQuarterFrame); // ([](byte data) -> void { Serial.println("TimeCodeQuarterFrame"); });
+        MIDI.setHandleSongPosition(handleSongPosition);                 // ([](unsigned beats) -> void { Serial.println("SongPosition"); });
+        MIDI.setHandleSongSelect(handleSongSelect);                     // ([](byte songnumber) -> void { Serial.println("SongSelect"); });
+        MIDI.setHandleTuneRequest(handleTuneRequest);                   // ([]() -> void { Serial.println("TuneRequest"); });
+        MIDI.setHandleClock(handleClock);                               // ([]() -> void { Serial.println("Clock"); });
+        MIDI.setHandleStart(handleStart);                               // ([]() -> void { Serial.println("Start"); });
+        MIDI.setHandleTick(handleTick);                                 // ([]() -> void { Serial.println("Tick"); });
+        MIDI.setHandleContinue(handleContinue);                         // ([]() -> void { Serial.println("Continue"); });
+        MIDI.setHandleStop(handleStop);                                 // ([]() -> void { Serial.println("Stop"); });
         // MIDI.setHandleActiveSensing(handleActiveSensing);               // ([]() -> void { Serial.println("ActiveSensing"); });
 
         // ------

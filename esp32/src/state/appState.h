@@ -8,23 +8,25 @@ class AppState_Class
 {
 private:
     STATE_LOCK_DEFINE(_mutex);
-    byte _volume = 30;
-    unsigned long _i2s_writeTime = 0;
+
+    bool _ready = false;
+
+    unsigned long _test_i2s_writeTime = 0;
 
 public:
-    byte volume() { return _volume; }
-    void volume(byte value)
+    bool isReady() { return _ready; }
+    void ready(bool value)
     {
         STATE_LOCK(_mutex);
-        _volume = value;
+        _ready = value;
         STATE_UNLOCK(_mutex);
     }
 
-    unsigned long i2s_writeTime() { return _i2s_writeTime; }
+    unsigned long i2s_writeTime() { return _test_i2s_writeTime; }
     void i2s_writeTime(unsigned long value)
     {
         STATE_LOCK(_mutex);
-        _i2s_writeTime = (_i2s_writeTime * 99 + value * 1) / 100;
+        _test_i2s_writeTime = (_test_i2s_writeTime * 99 + value * 1) / 100;
         STATE_UNLOCK(_mutex);
     }
 };
