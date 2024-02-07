@@ -40,7 +40,7 @@ void setup()
   MidiService.begin();
   SynthesizerService.begin();
 
-  test_waves();
+  // test_waves();
 
   if (!SpeakerService.begin(
           0,          // i2s port (0 or 1)
