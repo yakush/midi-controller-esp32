@@ -5,39 +5,78 @@
 #include "consts.h"
 #include "types/i2sFrame.h"
 #include "state/midiState.h"
+#include "utils/waveInterpolator.h"
 
-/**
- * @param angle: (0.0 - WAVE_PI (as 0..2PI))
- * @return range (INT16_MIN - INT16_MAX) of signed int16_t
- */
-typedef int16_t (*wave_generator_func_t)(FREQ_T angle, FREQ_T phase);
+enum WaveType{
+    SIN,
+    SAWTOOTH,
+};
 
-int16_t wave_sawtooth(FREQ_T angle, FREQ_T phase)
+class WaveGenerator
 {
-    angle = (uint32_t(angle) + phase) % WAVE_PI_2;
+public:
+    WaveGenerator() {}
+    virtual ~WaveGenerator() {}
 
-    int32_t res;
-    res = angle < WAVE_PI
-              ? (angle << 1) - INT16_MAX
-              : ((WAVE_PI_2 - angle) << 1) - INT16_MAX;
+    /**
+     * @param angle: (0.0 - WAVE_PI (as 0..2PI))
+     * @return range (INT16_MIN - INT16_MAX) of signed int16_t
+     */
+    virtual int16_t calc(uint16_t angle) = 0;
+};
 
-    // no need - same shifts R and L:
-    // res = (res << 16) >> SHIFT_WAVE_SAMPLE_RATE; // *waveOutputMax/sampleRate
+//-------------------------------------------------------
+//-------------------------------------------------------
+class SawtoothWaveGenerator : public WaveGenerator
+{
+public:
+    SawtoothWaveGenerator()
+    {
+    }
+    ~SawtoothWaveGenerator()
+    {
+    }
+    int16_t calc(uint16_t angle) override
+    {
 
-    return res;
+        int32_t res;
+        res = angle < WAVE_PI
+                  ? (angle << 1) - INT16_MAX
+                  : ((WAVE_PI_2 - angle) << 1) - INT16_MAX;
 
-    // return ((angle < PI ? (angle - PI_1_2) : (PI_3_2 - angle)) / PI);
+        // no need - same shifts R and L:
+        // res = (res << 16) >> SHIFT_WAVE_SAMPLE_RATE; // *waveOutputMax/sampleRate
 
-    // angle = angle + phase;
-    // if (angle > PI_2)
-    // {
-    //     angle -= PI_2;
-    // }
-    // else if (angle < 0)
-    // {
-    //     angle += PI_2;
-    // }
+        return res;
+    }
+};
+//-------------------------------------------------------
+//-------------------------------------------------------
 
-    // return FRAME_CHANNEL_MAX * ((angle < PI ? (angle) : (PI - angle)) / PI);
-    // // return ((angle < PI ? (angle - PI_1_2) : (PI_3_2 - angle)) / PI);
-}
+class SinWaveGenerator : public WaveGenerator
+{
+
+private:
+    WaveInterpolator *interpolator;
+
+public:
+    SinWaveGenerator(size_t resolution)
+    {
+        interpolator = new WaveInterpolator(
+            resolution,
+            [](uint16_t x) -> int16_t
+            {
+                float angle = (float)x / UINT16_MAX;
+                return INT16_MAX * sinf(PI * 2 * angle);
+            });
+    }
+    ~SinWaveGenerator()
+    {
+        delete interpolator;
+    }
+
+    int16_t calc(uint16_t angle)
+    {
+        return interpolator->calc(angle);
+    }
+};

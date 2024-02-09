@@ -19,6 +19,7 @@
 
 void test_waves()
 {
+  SawtoothWaveGenerator sawtooth;
   logGraphChannelValue(" > ", 00000, 10);
   logGraphChannelValue(" > ", 10000, 10);
   logGraphChannelValue(" > ", 20000, 10);
@@ -28,29 +29,29 @@ void test_waves()
   logGraphChannelValue(" > ", 60000, 10);
   Serial.println();
 
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (0.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (1.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (2.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (3.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (4.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (5.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (6.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (7.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (8.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (9.0 / 10), 0), 15, true);
-  logGraphChannelValue("wave i16: ", wave_sawtooth(WAVE_PI_2 * (10.0 / 10), 0), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (0.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (1.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (2.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (3.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (4.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (5.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (6.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (7.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (8.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (9.0 / 10)), 15, true);
+  logGraphChannelValue("wave i16: ", sawtooth.calc(WAVE_PI_2 * (10.0 / 10)), 15, true);
   Serial.println();
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (0.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (1.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (2.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (3.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (4.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (5.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (6.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (7.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (8.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (9.0 / 10), 0)), 15, true);
-  logGraphChannelValue("wave i16: ", (uint16_t)(0x7fff + wave_sawtooth(WAVE_PI_2 * (10.0 / 10), 0)), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (0.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (1.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (2.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (3.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (4.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (5.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (6.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (7.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (8.0 / 10))), 15, true);
+  logGraphChannelValue("wave u16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (9.0 / 10))), 15, true);
+  logGraphChannelValue("wave i16: ", (uint16_t)(0x7fff + sawtooth.calc(WAVE_PI_2 * (10.0 / 10))), 15, true);
 
   static const size_t NUM = 1000;
   I2S_Frame buffer[NUM];
@@ -89,15 +90,18 @@ void test_waves()
   }
 
   // wave note:
+  auto oldVolume = MidiState.volume();
+  MidiState.volumeNormalized(0.99);
   Serial.printf("WAVE TEST\n");
   Envelope envelope(0, 300, 0.8, 200);
-  Note note(60, 60, envelope);
+  Note note(60, 125, envelope);
   MidiState.addNote(note);
   SynthesizerService.writeBuffer(buffer, NUM);
   for (size_t i = 0; i < NUM; i += NUM / 50)
   {
-    logGraphChannelValue(">", buffer[i].channel1, 50,true);
+    logGraphChannelValue(">", buffer[i].channel1, 50, true);
   }
+  MidiState.volume(oldVolume);
 
   Serial.printf("vfactor: %u\n", note.velocityFactor);
 

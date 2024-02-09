@@ -11,6 +11,8 @@
 #include "logger.h"
 #include "state/midiState.h"
 #include "state/appState.h"
+#include "waveGenerators.h"
+#include "synthesizerService.h"
 
 // JSONVar readings;
 
@@ -184,6 +186,41 @@ public:
                 request->send(response);
             ; });
         _server.addHandler(handler_midi_state);
+
+        AsyncCallbackJsonWebHandler *handler_wave = new AsyncCallbackJsonWebHandler(
+            "/wave", [](AsyncWebServerRequest *request, JsonVariant &json)
+            {
+                bool okToSet=false;
+                WaveType type;
+                size_t resolution=100;
+
+                auto jsonObj = json.as<JsonObject>();
+
+                if (jsonObj.containsKey("resolution"))
+                {
+                    resolution = jsonObj["resolution"];
+                } 
+                if (jsonObj.containsKey("type"))
+                {
+                    String typeStr = jsonObj["type"];                        
+                    if (typeStr == "sin"){
+                        type =WaveType::SIN;
+                        okToSet=true;
+                    }else if (typeStr == "sawtooth"){
+                        type =WaveType::SAWTOOTH;
+                        okToSet=true;
+                    }
+                }
+                
+                if (!okToSet){
+                    request->send(200, "text/html", "error in params"); 
+                    return;
+                }
+                SynthesizerService.setWave(type,resolution);
+                request->send(200, "text/html", "ok"); 
+
+            ; });
+        _server.addHandler(handler_wave);
 
         //-------------------------------------------------------
         //-------------------------------------------------------

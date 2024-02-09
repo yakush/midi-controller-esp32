@@ -43,7 +43,7 @@ void setup()
   MidiService.begin();
   SynthesizerService.begin();
 
-  // test_waves();
+  test_waves();
 
   if (!SpeakerService.begin(
           0,          // i2s port (0 or 1)
@@ -94,14 +94,14 @@ void loop()
   //   }
   // }
 
-  // { // log i2s_writeTime
-  //   static unsigned long last = millis();
-  //   if (millis() > last + 1000)
-  //   {
-  //     Logger.printf("time %u micros\n", AppState.i2s_writeTime());
-  //     last = millis();
-  //   }
-  // }
+  { // log i2s_writeTime
+    static unsigned long last = millis();
+    if (millis() > last + 1000)
+    {
+      Logger.printf("time %u micros\n", AppState.i2s_writeTime());
+      last = millis();
+    }
+  }
 
   // static unsigned long last = millis();
   // static unsigned long counter = 1;

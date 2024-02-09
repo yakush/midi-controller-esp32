@@ -13,9 +13,13 @@
 #include "consts.h"
 #include "utils/utilsSound.h"
 #include "waveGenerators.h"
+#include "state/state.h"
 
 //-------------------------------------------------------
 //-------------------------------------------------------
+
+STATE_LOCK_DEFINE(lock_wave);
+WaveGenerator *wave;
 
 class NotesRunner : public NotesIterator
 {
@@ -27,6 +31,10 @@ public:
     bool requestEnvelopeUpdate = false;
 
     NotesRunner()
+    {
+    }
+
+    ~NotesRunner()
     {
     }
 
@@ -72,12 +80,14 @@ public:
         FREQ_T freq = note.freq;
         FREQ_T angle = calcWaveAngleFromTime(sampleTime, freq);
         FREQ_T phase = note.phase;
+        angle = (uint32_t(angle) + phase) % WAVE_PI_2;
 
         // build wave
         int32_t noteOutput = 0;
 
         // saw tooth for now
-        noteOutput = wave_sawtooth(angle, phase);
+        // noteOutput = wave_sawtooth(angle, phase);
+        noteOutput = wave->calc(angle);
 
         // envelope:
         noteOutput = (noteOutput * note.currentAmplitude * note.velocityFactor) >> 16;
@@ -115,7 +125,6 @@ private:
     NotesRunner notesRunner;
 
 public:
-
     SynthesizerService_CLASS()
     {
     }
@@ -125,6 +134,33 @@ public:
 
     void begin()
     {
+        //wave = new SawtoothWaveGenerator();
+        wave = new SinWaveGenerator(100);
+    }
+    void end()
+    {
+        delete wave;
+    }
+
+    void setWave(WaveType type, size_t resolution)
+    {
+        STATE_LOCK(lock_wave);
+        if (wave != NULL)
+        {
+            delete wave;
+            wave = NULL;
+        }
+
+        switch (type)
+        {
+        case WaveType::SIN:
+            wave = new SinWaveGenerator(resolution);
+            break;
+        case WaveType::SAWTOOTH:
+            wave = new SawtoothWaveGenerator();
+            break;
+        }
+        STATE_UNLOCK(lock_wave);
     }
 
     void writeBuffer(I2S_Frame *buffer, int32_t len)
@@ -138,7 +174,10 @@ public:
             notesRunner.sampleTime = sampleTime;
             notesRunner.output = 0;
 
+            // STATE_LOCK(lock_wave);
             MidiState.notesForeach(&notesRunner);
+            // STATE_UNLOCK(lock_wave);
+
             int32_t totalOutput = notesRunner.output;
 
             totalOutput = (totalOutput * volume) >> 8;

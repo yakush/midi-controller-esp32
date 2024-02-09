@@ -5,6 +5,7 @@
 #include "state.h"
 #include "types/midi.h"
 #include "utils/utilsSound.h"
+#include "waveGenerators.h"
 
 class NotesIterator
 {
@@ -45,6 +46,7 @@ public:
         json["volume"] = this->volumeNormalized();
         json["pitchBend"] = this->pitchBend();
         json["pitchBendBias"] = this->pitchBendBias();
+
         auto envelopeJson = json.createNestedObject("envelope");
         auto envelope = this->envelope();
         envelopeJson["attack"] = envelope.attack;
@@ -60,7 +62,7 @@ public:
         if (jsonObj.containsKey("volume"))
         {
             float volume = jsonObj["volume"];
-            this->volume(volume);
+            this->volumeNormalized(volume);
             if (log)
                 Logger.printf("got volume: %.2f\n", volume);
         }
@@ -111,14 +113,14 @@ public:
     }
 
     byte volume() { return _volume; }
-    float volumeNormalized() { return (float)_volume / 0xFF; }
     void volume(byte value)
     {
         STATE_LOCK(_mutex);
         _volume = value;
         STATE_UNLOCK(_mutex);
     }
-    void volume(float normalized)
+    float volumeNormalized() { return (float)_volume / 0xFF; }
+    void volumeNormalized(float normalized)
     {
         volume((byte)(normalized * 0xFF));
     }
