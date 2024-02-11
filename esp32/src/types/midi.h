@@ -69,11 +69,12 @@ struct Note
     unsigned long stateStartTime;
     uint16_t currentAmplitude;
     uint16_t startReleaseAmplitude;
+    bool startedPlaying;
 
     Note()
     {
         this->pitch = 0;
-        this->velocity = 0;
+        this->velocity = 0xFF;
         this->velocityFactor = calcVelocityFactor(0xFF);
         this->freq = MIDI_NOTES[0];
         this->phase = 0;
@@ -84,6 +85,7 @@ struct Note
         this->stateStartTime = 0;
         this->currentAmplitude = 0xFFFF;
         this->startReleaseAmplitude = 0xFFFF;
+        this->startedPlaying = false;
     }
 
     Note(

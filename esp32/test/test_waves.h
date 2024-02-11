@@ -143,11 +143,6 @@ void test_waves()
     MidiState.volume(oldVolume);
   }
 
-  {
-    Note note(60, 125, envelope);
-    Serial.printf("vfactor: %u\n", note.velocityFactor);
-  }
-
   // -----
   // time test
   MidiState.removeAllNotes();
@@ -232,6 +227,21 @@ void test_waves()
     end = esp_timer_get_time();
     Logger.printf("4 note + pitchBend time %u micros\n", (end - start) / TESTS);
   }
+  MidiState.removeAllNotes();
+
+  // -----
+  // velocity factors test-----
+  {
+    size_t N = 10;
+    for (size_t i = 0; i < N + 1; i++)
+    {
+      byte velocity = (uint16_t)0x7F * i / (N + 1);
+      Note note(60, velocity, envelope);
+      Serial.printf("velocity : %u vfactor: %u\n", note.velocity, note.velocityFactor);
+      logGraphChannelValue(note.velocityFactor, 30);
+    }
+  }
+
   // -----
   MidiState.removeAllNotes();
 }

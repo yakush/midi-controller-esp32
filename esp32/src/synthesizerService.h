@@ -107,9 +107,11 @@ public:
 
     void writeBuffer(I2S_Frame *buffer, int32_t len)
     {
-        // copy to local array
-        // - will also run updateNoteEnvelope() if never ran on note
-        // - will also ignore dead notes
+        // -- copy to local array
+        // will also run updateNoteEnvelope() if never ran on note
+        // will also ignore dead notes
+        // will also adjust phase (for new notes and pitchBend phase adjustments)
+
         MidiState.lock();
         auto origNotes = MidiState.notes();
         auto origNotesLen = MidiState.notesLen();
@@ -124,11 +126,11 @@ public:
             if (origNotes[i].state == EnvelopeState::DEAD)
                 continue;
 
-            // update brand new notes
+            // update envelope for brand new notes
             if (origNotes[i].state == EnvelopeState::PRESSED)
                 updateNoteEnvelope(origNotes[i], millis());
 
-            // update freq from pitch band:
+            // update freq from pitch bend:
             if (newPitchBend != pitchBend)
             {
                 auto oldFreq = origNotes[i].freq;
@@ -144,6 +146,22 @@ public:
                 origNotes[i].phase = newPhase;
             }
 
+            // first time audible notes
+            // adjust phase to start at beginning of waveform (angle*time+phase = 0)
+            // (note - takes the already calculated freq from the above section for pitch bend)
+            if (
+                !origNotes[i].startedPlaying &&     // is new note
+                origNotes[i].currentAmplitude != 0) // and audible
+            {
+                int64_t fixedPhase = -((int64_t)sampleTime * origNotes[i].freq);
+                fixedPhase = fixedPhase % FREQ_MAX;
+                if (fixedPhase < 0)
+                    fixedPhase += FREQ_MAX;
+
+                origNotes[i].phase = fixedPhase;
+                origNotes[i].startedPlaying = true;
+            }
+
             // copy to local array
             this->notes[notesLen].freq = origNotes[i].freq;
             this->notes[notesLen].phase = origNotes[i].phase;
@@ -155,11 +173,8 @@ public:
         pitchBend = newPitchBend;
         MidiState.unlock();
 
-        // MidiState.notesForeach(&copyFromSource);
-        // notesLen = copyFromSource.len;
-        // auto volume = MidiState.volume();
+        // -- fill the sample buffer
 
-        // go
         for (int sample = 0; sample < len; sample++)
         {
             int32_t totalOutput = 0;

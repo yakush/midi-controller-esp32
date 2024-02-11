@@ -70,7 +70,7 @@ public:
 
   bool run(Note &note, size_t i, size_t len) override
   {
-    Serial.printf("%d [%d] ", note.pitch, note.state);
+    Serial.printf("%d [%d] %u", note.pitch, note.state, note.velocityFactor);
     logGraphChannelValue(": ", note.currentAmplitude, 20);
     return true;
   }

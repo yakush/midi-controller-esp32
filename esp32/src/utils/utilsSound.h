@@ -34,6 +34,11 @@ void logGraphChannelValue(String pre, int32_t val, byte maxStars, bool negatives
     Serial.println(val);
 }
 
+void logGraphChannelValue(int32_t val, byte maxStars, bool negatives = false)
+{
+    logGraphChannelValue("", val, maxStars, negatives);
+}
+
 /** basically  sampleTime*freq but mapped to angle space */
 inline FREQ_T calcWaveAngleFromTime(uint32_t sampleTime, FREQ_T freq, FREQ_T phase)
 {
@@ -125,10 +130,7 @@ static EnvelopeState nextState(Envelope &envelope, EnvelopeState state)
 
 void updateNoteEnvelope(Note &note, unsigned long now)
 {
-    // helper var
-    static auto max = note.velocityFactor;
-
-    // double size for extra space for calcs
+    uint16_t max = note.velocityFactor;
     uint16_t output = 0;
 
     auto dt = now - note.stateStartTime;
@@ -167,7 +169,8 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (dt > decay)
             dt = decay;
         // max - ((max - sustain) * (dt/decay))
-        output = (uint32_t)max - (((uint32_t)max - sustain) * dt / decay);
+        uint16_t sustainLevel = ((uint32_t)max * sustain) >> 16;
+        output = (uint32_t)max - (((uint32_t)max - sustainLevel) * dt / decay);
 
         if (dt >= decay)
         {
@@ -178,7 +181,8 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     else if (note.state == EnvelopeState::SUSTAIN)
     {
         // = sustain level
-        output = ((uint32_t)max * sustain) >> 16;
+        uint16_t sustainLevel = ((uint32_t)max * sustain) >> 16;
+        output = sustainLevel;
     }
     else if (note.state == EnvelopeState::RELEASE)
     {
