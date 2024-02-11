@@ -21,95 +21,33 @@
 STATE_LOCK_DEFINE(lock_wave);
 WaveGenerator *wave;
 
-class NotesRunner : public NotesIterator
+struct SimpleNote
 {
-public:
-    int32_t output = 0;
-    uint32_t sampleTime = 0;
-
-    float lastEnvelopeUpdateMillis = 0;
-    bool requestEnvelopeUpdate = false;
-
-    NotesRunner()
-    {
-    }
-
-    ~NotesRunner()
-    {
-    }
-
-    bool before(size_t len) override
-    {
-        unsigned long now = millis();
-
-        if (now > this->lastEnvelopeUpdateMillis + UPDATE_ENVELOPE_TIME || now < this->lastEnvelopeUpdateMillis /*overflow*/)
-        {
-            this->requestEnvelopeUpdate = true;
-            this->lastEnvelopeUpdateMillis = now;
-        }
-        else
-        {
-            this->requestEnvelopeUpdate = false;
-        }
-        return true;
-    }
-
-    void after(size_t len) override
-    {
-        this->requestEnvelopeUpdate = false;
-    }
-
-    bool run(Note &note, size_t i, size_t len) override
-    {
-        // abort dead notes
-        if (note.state == EnvelopeState::DEAD)
-        {
-            return true;
-        }
-
-        // just in case note is never updated (i.e playing a new note before loop() ran):
-        if (
-            this->requestEnvelopeUpdate ||
-            note.state == EnvelopeState::PRESSED)
-        {
-            updateNoteEnvelope(note, millis());
-        }
-
-        // generate wave and add to output
-        // angle is (0..WAVE_PI_2) as in range of (0..pi)
-        FREQ_T freq = note.freq;
-        FREQ_T angle = calcWaveAngleFromTime(sampleTime, freq);
-        FREQ_T phase = note.phase;
-        angle = (uint32_t(angle) + phase) % WAVE_PI_2;
-
-        // build wave
-        int32_t noteOutput = 0;
-
-        // saw tooth for now
-        // noteOutput = wave_sawtooth(angle, phase);
-        noteOutput = wave->calc(angle);
-
-        // envelope:
-        noteOutput = (noteOutput * note.currentAmplitude * note.velocityFactor) >> 16;
-
-        output += noteOutput;
-
-        return true;
-    }
+    FREQ_T freq;
+    FREQ_T phase;
+    EnvelopeState state;
+    uint16_t currentAmplitude;
 };
 
 //-------------------------------------------------------
-
 class NotesTimeUpdater : public NotesIterator
 {
+    unsigned long now = 0;
+
 public:
     NotesTimeUpdater()
     {
     }
 
+    bool before(size_t len) override
+    {
+        this->now = millis();
+        return true;
+    }
+
     bool run(Note &note, size_t i, size_t len) override
     {
-        updateNoteEnvelope(note, millis());
+        updateNoteEnvelope(note, now);
         return true;
     }
 };
@@ -122,7 +60,9 @@ class SynthesizerService_CLASS
 private:
     uint32_t sampleTime = 0;
     NotesTimeUpdater notesTimeUpdater;
-    NotesRunner notesRunner;
+    SimpleNote notes[MAX_NOTES];
+    size_t notesLen = 0;
+    float pitchBend;
 
 public:
     SynthesizerService_CLASS()
@@ -134,8 +74,10 @@ public:
 
     void begin()
     {
-        //wave = new SawtoothWaveGenerator();
-        wave = new SinWaveGenerator(100);
+        pitchBend = MidiState.pitchBend();
+
+        // wave = new SawtoothWaveGenerator();
+        wave = new SinWaveGenerator(1000);
     }
     void end()
     {
@@ -165,24 +107,77 @@ public:
 
     void writeBuffer(I2S_Frame *buffer, int32_t len)
     {
+        // copy to local array
+        // - will also run updateNoteEnvelope() if never ran on note
+        // - will also ignore dead notes
+        MidiState.lock();
+        auto origNotes = MidiState.notes();
+        auto origNotesLen = MidiState.notesLen();
+        auto volume = MidiState.volume();
+        auto newPitchBend = MidiState.pitchBend();
 
-        byte volume = MidiState.volume();
-        // write buffers
+        notesLen = 0;
+
+        for (size_t i = 0; i < origNotesLen; i++)
+        {
+            // skip dead notes
+            if (origNotes[i].state == EnvelopeState::DEAD)
+                continue;
+
+            // update brand new notes
+            if (origNotes[i].state == EnvelopeState::PRESSED)
+                updateNoteEnvelope(origNotes[i], millis());
+
+            // update freq from pitch band:
+            if (newPitchBend != pitchBend)
+            {
+                auto oldFreq = origNotes[i].freq;
+                auto oldPhase = origNotes[i].phase;
+                auto newFreq = getNoteFrequency(origNotes[i].pitch, newPitchBend);
+                int64_t newPhase = (int64_t)oldPhase + sampleTime * ((int64_t)oldFreq - newFreq);
+
+                newPhase = newPhase % FREQ_MAX;
+                if (newPhase < 0)
+                    newPhase += FREQ_MAX;
+
+                origNotes[i].freq = newFreq;
+                origNotes[i].phase = newPhase;
+            }
+
+            // copy to local array
+            this->notes[notesLen].freq = origNotes[i].freq;
+            this->notes[notesLen].phase = origNotes[i].phase;
+            this->notes[notesLen].state = origNotes[i].state;
+            this->notes[notesLen].currentAmplitude = origNotes[i].currentAmplitude;
+
+            notesLen++;
+        }
+        pitchBend = newPitchBend;
+        MidiState.unlock();
+
+        // MidiState.notesForeach(&copyFromSource);
+        // notesLen = copyFromSource.len;
+        // auto volume = MidiState.volume();
+
+        // go
         for (int sample = 0; sample < len; sample++)
         {
-            MidiState.sampleTime(sampleTime);
-            notesRunner.sampleTime = sampleTime;
-            notesRunner.output = 0;
+            int32_t totalOutput = 0;
+            for (size_t i = 0; i < notesLen; i++)
+            {
+                // build wave for note
+                auto note = notes[i];
+                int32_t noteOutput = 0;
 
-            // STATE_LOCK(lock_wave);
-            MidiState.notesForeach(&notesRunner);
-            // STATE_UNLOCK(lock_wave);
+                // angle is (0..WAVE_PI_2) as in range of (0..pi)
+                FREQ_T angle = calcWaveAngleFromTime(sampleTime, note.freq, note.phase);
+                noteOutput = wave->calc(angle);
+                noteOutput = (noteOutput * note.currentAmplitude) >> 16;
+                totalOutput += noteOutput;
+            }
 
-            int32_t totalOutput = notesRunner.output;
-
+            // sum and trim:
             totalOutput = (totalOutput * volume) >> 8;
-
-            // trim:
             totalOutput = fastSigmoid_signed_32_to_16(totalOutput);
             // if (totalOutput > INT16_MAX)
             //     totalOutput = INT16_MAX;
@@ -201,8 +196,9 @@ public:
         // update envelope sometimes
         static unsigned long lastTime = 0;
         unsigned long now = millis();
-        if (now > lastTime + 300 || now < lastTime /*overflow*/)
+        if (now > lastTime + UPDATE_ENVELOPE_TIME || now < lastTime /*overflow*/)
         {
+            MidiState.notesForeach(&notesTimeUpdater);
             MidiState.notesCleanDead();
             lastTime = now;
         }
