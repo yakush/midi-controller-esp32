@@ -35,10 +35,10 @@ void logGraphChannelValue(String pre, int32_t val, byte maxStars, bool negatives
 }
 
 /** basically  sampleTime*freq but mapped to angle space */
-FREQ_T calcWaveAngleFromTime(uint32_t sampleTime, FREQ_T freq)
+inline FREQ_T calcWaveAngleFromTime(uint32_t sampleTime, FREQ_T freq, FREQ_T phase)
 {
     uint32_t angle = uint32_t(freq) * sampleTime;
-    angle = angle % WAVE_PI_2;
+    angle = (angle + phase) % WAVE_PI_2;
     return angle;
 }
 
@@ -126,7 +126,7 @@ static EnvelopeState nextState(Envelope &envelope, EnvelopeState state)
 void updateNoteEnvelope(Note &note, unsigned long now)
 {
     // helper var
-    static byte max = 0xFF;
+    static auto max = note.velocityFactor;
 
     // double size for extra space for calcs
     uint16_t output = 0;
@@ -154,7 +154,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (dt > attack)
             dt = attack;
         // max*(dt/attack)
-        output = (uint16_t)max * dt / attack;
+        output = (uint32_t)max * dt / attack;
 
         if (dt >= attack)
         {
@@ -167,7 +167,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
         if (dt > decay)
             dt = decay;
         // max - ((max - sustain) * (dt/decay))
-        output = (uint16_t)max - (((uint16_t)max - sustain) * dt / decay);
+        output = (uint32_t)max - (((uint32_t)max - sustain) * dt / decay);
 
         if (dt >= decay)
         {
@@ -178,7 +178,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
     else if (note.state == EnvelopeState::SUSTAIN)
     {
         // = sustain level
-        output = sustain;
+        output = ((uint32_t)max * sustain) >> 16;
     }
     else if (note.state == EnvelopeState::RELEASE)
     {
@@ -201,7 +201,7 @@ void updateNoteEnvelope(Note &note, unsigned long now)
             dt = stateTime;
 
         // releaseMaxAmplitude - releaseMaxAmplitude*(dt/stateTime)
-        output = releaseMaxAmplitude - ((uint16_t)releaseMaxAmplitude * dt / stateTime);
+        output = releaseMaxAmplitude - ((uint32_t)releaseMaxAmplitude * dt / stateTime);
 
         if (dt >= stateTime)
         {
@@ -235,7 +235,7 @@ void updateNoteRelease(Note &note, unsigned long now)
     note.startReleaseAmplitude = note.currentAmplitude;
 }
 
-int16_t fastSigmoid_signed_32_to_16(int32_t val)
+inline int16_t fastSigmoid_signed_32_to_16(int32_t val)
 {
     if (val > 163835)
         return INT16_MAX;

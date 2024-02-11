@@ -22,7 +22,7 @@ struct Envelope
     /** time for decay */
     uint16_t decay;
     /** LEVEL of sustain (decay to this level) */
-    byte sustain;
+    uint16_t sustain;
     /** time for release */
     uint16_t release;
 
@@ -47,11 +47,11 @@ struct Envelope
 
     void sustainNormalized(float val)
     {
-        this->sustain = (byte)(val * 0xFF);
+        this->sustain = (val * 0xFFFF);
     }
     float sustainNormalized()
     {
-        return (float)sustain / 0xFF;
+        return (float)sustain / 0xFFFF;
     }
 };
 
@@ -59,7 +59,7 @@ struct Note
 {
     byte pitch;
     byte velocity;
-    byte velocityFactor;
+    uint16_t velocityFactor;
     FREQ_T freq;
     FREQ_T phase;
     bool isDown;
@@ -67,14 +67,14 @@ struct Note
     EnvelopeState state;
     unsigned long noteStartTime;
     unsigned long stateStartTime;
-    byte currentAmplitude;
-    byte startReleaseAmplitude;
+    uint16_t currentAmplitude;
+    uint16_t startReleaseAmplitude;
 
     Note()
     {
         this->pitch = 0;
         this->velocity = 0;
-        this->velocityFactor = calcVelocityFactor(0);
+        this->velocityFactor = calcVelocityFactor(0xFF);
         this->freq = MIDI_NOTES[0];
         this->phase = 0;
         this->isDown = true;
@@ -82,8 +82,8 @@ struct Note
         this->state = EnvelopeState::PRESSED;
         this->noteStartTime = 0;
         this->stateStartTime = 0;
-        this->currentAmplitude = 0xFF;
-        this->startReleaseAmplitude = 0xFF;
+        this->currentAmplitude = 0xFFFF;
+        this->startReleaseAmplitude = 0xFFFF;
     }
 
     Note(

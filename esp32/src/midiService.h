@@ -12,44 +12,6 @@
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, MIDI);
 
 //-------------------------------------------------------
-//-------------------------------------------------------
-class PitchBendUpdater : public NotesIterator
-{
-private:
-    float pitchBend;
-
-public:
-    PitchBendUpdater(float pitchBend)
-    {
-        this->pitchBend = pitchBend;
-    }
-
-    bool run(Note &note, size_t i, size_t len) override
-    {
-        // TODO: phase matching doesn't work
-
-        auto time = MidiState.sampleTime();
-
-        FREQ_T oldFreq = note.freq;
-        FREQ_T oldPhase = note.phase;
-
-        FREQ_T newFreq = getNoteFrequency(note.pitch, pitchBend);
-        int64_t newPhase = (int64_t)oldPhase + time * ((int64_t)oldFreq - newFreq);
-
-        // normalize:
-        if (newPhase < 0)
-        {
-            newPhase = newPhase + FREQ_MAX;
-        }
-        newPhase = newPhase % WAVE_PI_2;
-
-        note.freq = newFreq;
-        note.phase = newPhase;
-        return true;
-    }
-};
-
-//-------------------------------------------------------
 void handleNoteOn(byte channel, byte pitch, byte velocity)
 {
     // Logger.printf("note on %d %d %d\n", channel, pitch, velocity);
@@ -74,7 +36,6 @@ void handleControlChange(byte channel, byte type, byte val)
 {
     Logger.printf("ControlChange %d %d %d\n", channel, type, val);
 
-    // TODO: set  stuff
     if (type == midi::MidiControlChangeNumber::ChannelVolume)
     {
         MidiState.volume(val);
@@ -91,10 +52,7 @@ void handlePitchBend(byte channel, int change)
     val = val + MidiState.pitchBendBias();
     MidiState.pitchBend(val);
 
-    auto updater = PitchBendUpdater(val);
-    MidiState.notesForeach(&updater);
-
-    Logger.printf("PitchBend %d %d (%.2f)\n", channel, change, val);
+    // Logger.printf("PitchBend %d %d (%.2f)\n", channel, change, val);
 }
 
 void handleError(int8_t err)

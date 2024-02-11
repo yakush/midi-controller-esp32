@@ -3,11 +3,11 @@
 #include "types/midi.h"
 
 //-------------------------------------------------------
-static byte mapVal(int v, byte fromMin, byte fromMax, byte toMin, byte toMax, bool limit = true)
+static uint16_t mapVal(int v, byte fromMin, byte fromMax, uint16_t toMin, uint16_t toMax, bool limit = true)
 {
     uint16_t fromRange = fromMax - fromMin;
-    uint16_t toRange = toMax - toMin;
-    uint16_t res = toMin + (toRange * ((v - fromMin) / fromRange));
+    uint32_t toRange = toMax - toMin;
+    uint32_t res = toMin + (toRange * ((v - fromMin) / fromRange));
 
     if (limit && res < toMin)
     {
@@ -20,7 +20,7 @@ static byte mapVal(int v, byte fromMin, byte fromMax, byte toMin, byte toMax, bo
     return res;
 }
 
-byte calcVelocityFactor(byte velocity)
+uint16_t calcVelocityFactor(byte velocity)
 {
 
     // define graph:
@@ -32,30 +32,27 @@ byte calcVelocityFactor(byte velocity)
         70,  // f
         100, // f
     };
-    static byte vals[]{
-        (byte)(0.20 * 0xFF), // pp
-        (byte)(0.50 * 0xFF), // p
-        (byte)(0.80 * 0xFF), // norm
-        (byte)(0.92 * 0xFF), // f
-        (byte)(0.98 * 0xFF), // f
+    static uint16_t vals[]{
+        (uint16_t)(0.20 * 0xFFFF), // pp
+        (uint16_t)(0.50 * 0xFFFF), // p
+        (uint16_t)(0.80 * 0xFFFF), // norm
+        (uint16_t)(0.92 * 0xFFFF), // f
+        (uint16_t)(0.98 * 0xFFFF), // f
     };
 
-    // calc:
-    float v = velocity;
-
     // bellow min stop
-    if (v < stops[0])
+    if (velocity < stops[0])
     {
         return vals[0];
     }
     for (size_t i = 1; i < numStops; i++)
     {
-        if (v < stops[i])
+        if (velocity < stops[i])
         {
-            return mapVal(v, stops[i - 1], stops[i], vals[i - 1], vals[i]);
+            return mapVal(velocity, stops[i - 1], stops[i], vals[i - 1], vals[i]);
         }
     }
 
     // over max stop
-    return 0xFF;
+    return 0xFFFF;
 }

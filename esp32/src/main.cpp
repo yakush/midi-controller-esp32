@@ -96,21 +96,10 @@ void loop()
 
   { // log i2s_writeTime
     static unsigned long last = millis();
-    if (millis() > last + 1000)
+    if (millis() > last + 3000)
     {
       Logger.printf("time %u micros\n", AppState.i2s_writeTime());
       last = millis();
     }
   }
-
-  // static unsigned long last = millis();
-  // static unsigned long counter = 1;
-  // if (millis() > last + 10000)
-  // {
-  //   // Logger.println("time:");
-  //   // ws.printfAll("hi %d", counter);
-  //   Logger.printf("hi %ul\n", counter);
-  //   last = millis();
-  //   counter++;
-  // }
 }

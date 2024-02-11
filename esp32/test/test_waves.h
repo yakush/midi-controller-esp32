@@ -89,21 +89,64 @@ void test_waves()
     logGraphChannelValue(">", buffer[i].channel1, 50, true);
   }
 
-  // wave note:
-  auto oldVolume = MidiState.volume();
-  MidiState.volumeNormalized(0.99);
-  Serial.printf("WAVE TEST\n");
   Envelope envelope(0, 300, 0.8, 200);
-  Note note(60, 125, envelope);
-  MidiState.addNote(note);
-  SynthesizerService.writeBuffer(buffer, NUM);
-  for (size_t i = 0; i < NUM; i += NUM / 50)
-  {
-    logGraphChannelValue(">", buffer[i].channel1, 50, true);
-  }
-  MidiState.volume(oldVolume);
 
-  Serial.printf("vfactor: %u\n", note.velocityFactor);
+  // wave note:
+  {
+    auto oldVolume = MidiState.volume();
+    MidiState.volumeNormalized(0.99);
+    Serial.printf("WAVE TEST\n");
+    Note note(60, 125, envelope);
+    MidiState.addNote(note);
+    SynthesizerService.writeBuffer(buffer, NUM);
+    for (size_t i = 0; i < NUM; i += NUM / 50)
+    {
+      logGraphChannelValue(">", buffer[i].channel1, 50, true);
+    }
+    MidiState.volume(oldVolume);
+  }
+
+  // -- pitch bend phase adjust test
+  {
+    Serial.printf("phase adjust test\n");
+    MidiState.removeAllNotes();
+    auto oldVolume = MidiState.volume();
+    MidiState.volumeNormalized(0.99);
+    Note note(45, 125, envelope);
+    MidiState.addNote(note);
+
+    MidiState.pitchBend(0);
+    SynthesizerService.writeBuffer(buffer, NUM);
+    Serial.printf("---f %u p %u\n", MidiState.notes()[0].freq, MidiState.notes()[0].phase);
+    for (size_t i = 0; i < NUM; i += NUM / 50)
+      logGraphChannelValue(">", buffer[i].channel1, 50, true);
+
+    MidiState.pitchBend(1);
+    SynthesizerService.writeBuffer(buffer, NUM);
+    Serial.printf("---f %u p %u\n", MidiState.notes()[0].freq, MidiState.notes()[0].phase);
+    for (size_t i = 0; i < NUM; i += NUM / 50)
+      logGraphChannelValue(">", buffer[i].channel1, 50, true);
+
+    MidiState.pitchBend(-1);
+    SynthesizerService.writeBuffer(buffer, NUM);
+    Serial.printf("---f %u p %u\n", MidiState.notes()[0].freq, MidiState.notes()[0].phase);
+    for (size_t i = 0; i < NUM; i += NUM / 50)
+      logGraphChannelValue(">", buffer[i].channel1, 50, true);
+
+    MidiState.pitchBend(2);
+    SynthesizerService.writeBuffer(buffer, NUM);
+    Serial.printf("---f %u p %u\n", MidiState.notes()[0].freq, MidiState.notes()[0].phase);
+    for (size_t i = 0; i < NUM; i += NUM / 50)
+      logGraphChannelValue(">", buffer[i].channel1, 50, true);
+
+    MidiState.pitchBend(0);
+    MidiState.volume(oldVolume);
+  }
+
+  {
+    Note note(60, 125, envelope);
+    Serial.printf("vfactor: %u\n", note.velocityFactor);
+  }
 
   // -----
   // time test
@@ -113,66 +156,82 @@ void test_waves()
   uint64_t end;
   int TESTS = 1000;
 
-  start = esp_timer_get_time();
-  for (size_t i = 0; i < TESTS; i++)
   {
-    SynthesizerService.writeBuffer(buffer, 64);
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("0 note time %u micros\n", (end - start) / TESTS);
   }
-  end = esp_timer_get_time();
-  Logger.printf("0 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
     Note note(70, 60, envelope);
     MidiState.addNote(note);
-  }
 
-  start = esp_timer_get_time();
-  for (size_t i = 0; i < TESTS; i++)
-  {
-    SynthesizerService.writeBuffer(buffer, 64);
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("1 note time %u micros\n", (end - start) / TESTS);
   }
-  end = esp_timer_get_time();
-  Logger.printf("1 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
     Note note(80, 60, envelope);
     MidiState.addNote(note);
-  }
 
-  start = esp_timer_get_time();
-  for (size_t i = 0; i < TESTS; i++)
-  {
-    SynthesizerService.writeBuffer(buffer, 64);
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("2 note time %u micros\n", (end - start) / TESTS);
   }
-  end = esp_timer_get_time();
-  Logger.printf("2 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
     Note note(90, 60, envelope);
     MidiState.addNote(note);
-  }
 
-  start = esp_timer_get_time();
-  for (size_t i = 0; i < TESTS; i++)
-  {
-    SynthesizerService.writeBuffer(buffer, 64);
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("3 note time %u micros\n", (end - start) / TESTS);
   }
-  end = esp_timer_get_time();
-  Logger.printf("3 note time %u micros\n", (end - start) / TESTS);
   // -----
   {
+
     Note note(100, 60, envelope);
     MidiState.addNote(note);
-  }
 
-  start = esp_timer_get_time();
-  for (size_t i = 0; i < TESTS; i++)
-  {
-    SynthesizerService.writeBuffer(buffer, 64);
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("4 note time %u micros\n", (end - start) / TESTS);
   }
-  end = esp_timer_get_time();
-  Logger.printf("4 note time %u micros\n", (end - start) / TESTS);
   // -----
+  {
 
+    // change pitch bend
+    MidiState.pitchBend(0.2);
+
+    start = esp_timer_get_time();
+    for (size_t i = 0; i < TESTS; i++)
+    {
+      SynthesizerService.writeBuffer(buffer, 64);
+    }
+    end = esp_timer_get_time();
+    Logger.printf("4 note + pitchBend time %u micros\n", (end - start) / TESTS);
+  }
+  // -----
   MidiState.removeAllNotes();
 }

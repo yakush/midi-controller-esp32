@@ -7,6 +7,8 @@
 #include "utils/utilsSound.h"
 #include "waveGenerators.h"
 
+#define MAX_NOTES (20)
+
 class NotesIterator
 {
 public:
@@ -29,18 +31,26 @@ class MidiState_Class
 {
 private:
     STATE_LOCK_DEFINE(_mutex);
+    
     byte _volume = INITIAL_VOLUME_NORMALIZED * 0xFF;
     /** range (-2 .. +2) semitones */
     float _pitchBend = 0;
-    float _pitchBendBias = INITIAL_PITCH_BEND_BIAS;
-    std::vector<Note> _notesPlaying;
-
-    /** last played sample-time */
-    uint32_t _sampleTime = 0;
-
+    float _pitchBendBias = INITIAL_PITCH_BEND_BIAS;    
+    // std::vector<Note> _notesPlaying;
+    Note _notesPlaying[MAX_NOTES];
+    size_t _notesPlayingLen = 0;
     Envelope _envelope = Envelope(100, 200, 0.8, 300);
 
 public:
+    inline void lock()
+    {
+        STATE_LOCK(_mutex);
+    }
+    inline void unlock()
+    {
+        STATE_UNLOCK(_mutex);
+    }
+
     void writeToJson(JsonVariant &json)
     {
         json["volume"] = this->volumeNormalized();
@@ -112,6 +122,9 @@ public:
         }
     }
 
+    Note* notes() { return _notesPlaying; }
+    size_t notesLen() { return _notesPlayingLen; }
+
     byte volume() { return _volume; }
     void volume(byte value)
     {
@@ -133,14 +146,6 @@ public:
         STATE_UNLOCK(_mutex);
     }
 
-    uint32_t sampleTime() { return _sampleTime; }
-    void sampleTime(uint32_t value)
-    {
-        STATE_LOCK(_mutex);
-        _sampleTime = value;
-        STATE_UNLOCK(_mutex);
-    }
-
     float pitchBend() { return _pitchBend; }
     void pitchBend(float value)
     {
@@ -157,18 +162,41 @@ public:
         STATE_UNLOCK(_mutex);
     }
 
-    void getNotesPlaying(std::vector<Note> &output)
-    {
-        STATE_LOCK(_mutex);
-        output.assign(_notesPlaying.begin(), _notesPlaying.end());
-        STATE_UNLOCK(_mutex);
-    }
+    // void getNotesPlaying(std::vector<Note> &output)
+    // {
+    //     STATE_LOCK(_mutex);
+    //     output.assign(_notesPlaying.begin(), _notesPlaying.end());
+    //     STATE_UNLOCK(_mutex);
+    // }
 
     void addNote(Note &note)
     {
         STATE_LOCK(_mutex);
         removeNote(note.pitch);
-        _notesPlaying.push_back(note);
+
+        if (_notesPlayingLen == MAX_NOTES)
+        {
+            removeNote(0);
+        }
+
+        _notesPlaying[_notesPlayingLen] = note;
+        _notesPlayingLen++;
+
+        logNotes();
+
+        STATE_UNLOCK(_mutex);
+    }
+
+    void removeNoteAtIdx(size_t idx)
+    {
+        STATE_LOCK(_mutex);
+
+        _notesPlayingLen--;
+        // shift all items back
+        for (size_t i = idx; i < _notesPlayingLen; i++)
+        {
+            _notesPlaying[i] = _notesPlaying[i + 1];
+        }
 
         logNotes();
 
@@ -178,18 +206,25 @@ public:
     void removeNote(byte pitch)
     {
         STATE_LOCK(_mutex);
-        size_t len = _notesPlaying.size();
 
-        _notesPlaying.erase(
-            std::remove_if(_notesPlaying.begin(), _notesPlaying.end(),
-                           [pitch](const Note &note)
-                           { return note.pitch == pitch; }),
-            _notesPlaying.end());
+        bool found = false;
+        size_t foundIdx;
 
-        if (len != _notesPlaying.size())
+        for (int i = 0; i < _notesPlayingLen; ++i)
         {
-            logNotes();
+            if (_notesPlaying[i].pitch == pitch)
+            {
+                foundIdx = i;
+                found = true;
+                break;
+            }
         }
+
+        if (found)
+        {
+            removeNoteAtIdx(foundIdx);
+        }
+
         STATE_UNLOCK(_mutex);
     }
 
@@ -198,7 +233,7 @@ public:
         bool died = false;
 
         STATE_LOCK(_mutex);
-        for (size_t i = 0; i < _notesPlaying.size(); i++)
+        for (size_t i = 0; i < _notesPlayingLen; i++)
         {
             if (_notesPlaying[i].pitch == pitch)
             {
@@ -218,11 +253,10 @@ public:
     void removeAllNotes()
     {
         STATE_LOCK(_mutex);
-        size_t len = _notesPlaying.size();
+        bool hadItems = _notesPlayingLen > 0;
+        _notesPlayingLen = 0;
 
-        _notesPlaying.clear();
-
-        if (len != _notesPlaying.size())
+        if (hadItems)
         {
             logNotes();
         }
@@ -232,7 +266,7 @@ public:
     void notesForeach(NotesIterator *iterator)
     {
         STATE_LOCK(_mutex);
-        size_t len = _notesPlaying.size();
+        size_t len = _notesPlayingLen;
         bool okToContinue = iterator->before(len);
         for (size_t i = 0; i < len; i++)
         {
@@ -249,14 +283,19 @@ public:
     void notesCleanDead()
     {
         STATE_LOCK(_mutex);
-        size_t len = _notesPlaying.size();
-        _notesPlaying.erase(
-            std::remove_if(_notesPlaying.begin(), _notesPlaying.end(),
-                           [](const Note &note)
-                           { return note.state == EnvelopeState::DEAD; }),
-            _notesPlaying.end());
+        bool found = false;
 
-        if (len != _notesPlaying.size())
+        // go backwards - safe to delete items as you go
+        for (int i = _notesPlayingLen - 1; i >= 0; i--)
+        {
+            if (_notesPlaying[i].state == EnvelopeState::DEAD)
+            {
+                found = true;
+                removeNoteAtIdx(i);
+            }
+        }
+
+        if (found)
         {
             logNotes();
         }
@@ -268,7 +307,7 @@ public:
         String out = "> notes: ";
 
         STATE_LOCK(_mutex);
-        for (size_t i = 0; i < _notesPlaying.size(); i++)
+        for (size_t i = 0; i < _notesPlayingLen; i++)
         {
             auto pitch = _notesPlaying[i].pitch;
             auto freq = _notesPlaying[i].freq;
