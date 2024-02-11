@@ -138,6 +138,7 @@ public:
 
     void begin()
     {
+        SPIFFS.begin();
         _ws.onEvent(onEvent);
         _server.addHandler(&_ws);
 
@@ -149,9 +150,13 @@ public:
         // server.serveStatic("/", SPIFFS, "/");
 
         //-------------------------------------------------------
-        // ALL *
+        // ALL NotFound
         _server.onNotFound([](AsyncWebServerRequest *request)
-                           { request->send(200, "text/html", "no such page"); });
+                           { request->send(404, "text/html", "no such page"); });
+
+        //-------------------------------------------------------
+        // static
+        _server.serveStatic("/", SPIFFS, "/web/").setDefaultFile("index.html");
 
         //-------------------------------------------------------
         // GET /test
