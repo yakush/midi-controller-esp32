@@ -6,21 +6,20 @@
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
 #include "SPIFFS.h"
-// #include <Arduino_JSON.h>
 #include "config.h"
 #include "logger.h"
 #include "state/midiState.h"
 #include "state/appState.h"
 #include "waveGenerators.h"
 #include "synthesizerService.h"
-
-// JSONVar readings;
+#include "helpers/ws.h"
+#include "helpers/AsyncSinglePageAppHandler.h"
 
 AsyncWebServer _server = AsyncWebServer(SERVER_PORT);
-AsyncWebSocket _ws = AsyncWebSocket("/ws");
+WsHandler _wsHandler;
 
 //-------------------------------------------------------
-static void handleWebSocketMessage(AwsFrameInfo *info, char *data, size_t len)
+static void handleWebSocketMessage(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsFrameInfo *info, char *data, size_t len)
 {
     data[len] = 0;
     String message = (char *)data;
@@ -29,10 +28,10 @@ static void handleWebSocketMessage(AwsFrameInfo *info, char *data, size_t len)
     // if it is, send current sensor readings
     Serial.print("sending to clients: ");
     Serial.println(message);
-    _ws.textAll(data, len);
+    server->textAll(data, len);
 }
 
-static void handleWebSocketMessageBinary(AwsFrameInfo *info, byte *data, size_t len)
+static void handleWebSocketMessageBinary(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsFrameInfo *info, uint8_t *data, size_t len)
 {
     for (size_t i = 0; i < info->len; i++)
     {
@@ -41,88 +40,25 @@ static void handleWebSocketMessageBinary(AwsFrameInfo *info, byte *data, size_t 
     Serial.printf("\n");
 }
 
-static void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+static void handleWebSocket_connect(AsyncWebSocket *server, AsyncWebSocketClient *client)
 {
-
-    if (type == WS_EVT_CONNECT)
-    {
-        Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
-        client->printf("Hello Client %u :)", client->id());
-        client->ping();
-    }
-    else if (type == WS_EVT_DISCONNECT)
-    {
-        Serial.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
-    }
-    else if (type == WS_EVT_ERROR)
-    {
-        Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t *)arg), (char *)data);
-    }
-    else if (type == WS_EVT_PONG)
-    {
-        // Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len) ? (char *)data : "");
-    }
-    else if (type == WS_EVT_DATA)
-    {
-        // data packet
-        AwsFrameInfo *info = (AwsFrameInfo *)arg;
-        if (info->final && info->index == 0 && info->len == len)
-        {
-            // the whole message is in a single frame and we got all of it's data
-            Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT) ? "text" : "binary", info->len);
-            if (info->opcode == WS_TEXT)
-            {
-                // data[len] = 0;
-                // Serial.printf("%s\n", (char *)data);
-                handleWebSocketMessage(info, (char *)data, len);
-                client->text("I got your text message");
-            }
-            else
-            {
-                handleWebSocketMessageBinary(info, data, len);
-                client->binary("I got your binary message");
-            }
-        }
-        else
-        {
-            // message is comprised of multiple frames or the frame is split into multiple packets
-            if (info->index == 0)
-            {
-                if (info->num == 0)
-                    Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
-                Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
-            }
-
-            Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT) ? "text" : "binary", info->index, info->index + len);
-            if (info->message_opcode == WS_TEXT)
-            {
-                data[len] = 0;
-                Serial.printf("%s\n", (char *)data);
-            }
-            else
-            {
-                for (size_t i = 0; i < len; i++)
-                {
-                    Serial.printf("%02x ", data[i]);
-                }
-                Serial.printf("\n");
-            }
-
-            if ((info->index + len) == info->len)
-            {
-                Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
-                if (info->final)
-                {
-                    Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT) ? "text" : "binary");
-                    if (info->message_opcode == WS_TEXT)
-                        client->text("I got your text message");
-                    else
-                        client->binary("I got your binary message");
-                }
-            }
-        }
-    }
+    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    client->printf("Hello Client %u :)", client->id());
+    client->ping();
 }
+static void handleWebSocket_disconnect(AsyncWebSocket *server, AsyncWebSocketClient *client)
+{
+    Serial.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
+}
+static void handleWebSocket_error(AsyncWebSocket *server, AsyncWebSocketClient *client, uint16_t code, char *data)
+{
+    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), code, data);
+}
+static void handleWebSocket_pong(AsyncWebSocket *server, AsyncWebSocketClient *client)
+{
+    // Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len) ? (char *)data : "");
+}
+
 //-------------------------------------------------------
 
 class ServerService_Class
@@ -133,14 +69,21 @@ public:
     {
     }
 
-    AsyncWebServer &server() const { return _server; }
-    AsyncWebSocket &ws() const { return _ws; }
+    AsyncWebServer *server() const { return &_server; }
+    AsyncWebSocket *ws() const { return _wsHandler.ws(); }
 
     void begin()
     {
         SPIFFS.begin();
-        _ws.onEvent(onEvent);
-        _server.addHandler(&_ws);
+
+        _wsHandler.begin(&_server, "/ws");
+        _wsHandler.messageTextHandler(handleWebSocketMessage);
+        _wsHandler.messageBinHandler(handleWebSocketMessageBinary);
+
+        _wsHandler.connectHandler(handleWebSocket_connect);
+        _wsHandler.disconnectHandler(handleWebSocket_disconnect);
+        _wsHandler.errorHandler(handleWebSocket_error);
+        _wsHandler.pongHandler(handleWebSocket_pong);
 
         // setup endpoints:
 
@@ -156,8 +99,13 @@ public:
 
         //-------------------------------------------------------
         // static
-        _server.serveStatic("/", SPIFFS, "/web/").setDefaultFile("index.html");
+        {
+            auto handler = new AsyncSinglePageAppHandler("/web/", SPIFFS, "/web/", "");
+            handler->setDefaultFile("index.html");
+            _server.addHandler(handler);
 
+            //_server.serveStatic("/web/", SPIFFS, "/web/").setDefaultFile("index.html");
+        }
         //-------------------------------------------------------
         // GET /test
         _server.on(
@@ -192,9 +140,10 @@ public:
             ; });
         _server.addHandler(handler_midi_state);
 
-        AsyncCallbackJsonWebHandler *handler_wave = new AsyncCallbackJsonWebHandler(
-            "/wave", [](AsyncWebServerRequest *request, JsonVariant &json)
-            {
+        {
+            auto handler = new AsyncCallbackJsonWebHandler(
+                "/wave", [](AsyncWebServerRequest *request, JsonVariant &json)
+                {
                 bool okToSet=false;
                 WaveType type;
                 size_t resolution=100;
@@ -225,8 +174,8 @@ public:
                 request->send(200, "text/html", "ok"); 
 
             ; });
-        _server.addHandler(handler_wave);
-
+            _server.addHandler(handler);
+        }
         //-------------------------------------------------------
         //-------------------------------------------------------
 
@@ -235,7 +184,7 @@ public:
 
     void loop()
     {
-        _ws.cleanupClients();
+        _wsHandler.cleanupClients();
     }
 };
 

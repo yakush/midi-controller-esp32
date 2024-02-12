@@ -6,7 +6,7 @@ static size_t webLog_print(const uint8_t *payload, size_t size)
 {
     if (WiFi.status() == WL_CONNECTED)
     {
-        ServerService.ws().textAll((char *)payload, size);
+        ServerService.ws()->textAll((char *)payload, size);
     }
     return size;
 }
